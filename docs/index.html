@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Flat Mockup – Brick 1</title>
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <div class="app">
+    <aside class="panel">
+      <h2>Mockup Controls</h2>
+
+      <div class="field">
+        <label>Upload Blank (PNG/SVG/JPG)</label>
+        <input id="blankFile" type="file" accept="image/*,.svg" />
+        <small class="muted">Your flat shirt blank. Transparent PNG preferred.</small>
+      </div>
+
+      <div class="field">
+        <label>Upload Artwork (PNG/SVG/JPG)</label>
+        <input id="artFile" type="file" accept="image/*,.svg" />
+        <small class="muted">You can move/scale/rotate after loading.</small>
+      </div>
+
+      <div class="field">
+        <label>Transform Tips</label>
+        <div class="hint">
+          <span class="kbd">Drag</span> move &nbsp;•&nbsp;
+          <span class="kbd">Shift + drag</span> scale &nbsp;•&nbsp;
+          <span class="kbd">Ctrl/Cmd + drag</span> rotate
+        </div>
+      </div>
+
+      <div class="row">
+        <button id="centerBtn">Center</button>
+        <button id="fitBtn" class="primary">Fit to Print Area</button>
+      </div>
+
+      <hr />
+      <small class="muted">
+        Brick 1 = placement only. Export & BG-removal come later bricks.
+      </small>
+    </aside>
+
+    <main class="stage">
+      <canvas id="stage" aria-label="Mockup canvas"></canvas>
+      <div class="overlay">
+        <!-- Simple visual print area guide (same rect used in code) -->
+        <div id="printAreaGuide"></div>
+      </div>
+    </main>
+  </div>
+
+  <script src="./app.js"></script>
+</body>
+</html>
