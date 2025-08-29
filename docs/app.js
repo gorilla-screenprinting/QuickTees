@@ -312,6 +312,9 @@ function endPointer(e) {
 }
 window.addEventListener('pointerup', endPointer);
 window.addEventListener('pointercancel', endPointer);
+// Belt-and-suspenders for stubborn mobile browsers (iOS especially)
+canvas.addEventListener('touchstart', (e) => e.preventDefault(), { passive: false });
+canvas.addEventListener('touchmove',  (e) => e.preventDefault(), { passive: false });
 
 
 
