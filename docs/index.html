@@ -6,15 +6,17 @@
   <title>Flat Mockup – Brick 1</title>
   <link rel="stylesheet" href="./style.css" />
 </head>
+
 <body>
   <div class="app">
     <aside class="panel">
-      <h2>Mockup Controls</h2>
+      <h2>Design Your Shirt</h2>
       <div class="field">
-        <label>Upload Blank (PNG/SVG/JPG)</label>
-        <input id="blankFile" type="file" accept="image/*,.svg" />
-        <small class="muted">Your flat shirt blank. Transparent PNG preferred.</small>
+        <label>Choose Shirt Blank</label>
+        <select id="blankSelect"></select>
+        <small class="muted">Images from assets/shirt_blanks</small>
       </div>
+
 
       <div class="field">
         <label>Upload Artwork (PNG/SVG/JPG)</label>

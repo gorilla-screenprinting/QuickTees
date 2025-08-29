@@ -3,7 +3,7 @@
   const canvas = document.getElementById('stage');
   const ctx = canvas.getContext('2d', { willReadFrequently: true });
 
-  const blankFile = document.getElementById('blankFile');
+  const blankSelect = document.getElementById('blankSelect');
   const artFile   = document.getElementById('artFile');
   const centerBtn = document.getElementById('centerBtn');
   const fitBtn    = document.getElementById('fitBtn');
@@ -53,6 +53,42 @@
 
     draw();
   }
+
+  async function loadShirtManifest() {
+  try {
+    const res = await fetch('./assets/shirt_blanks/manifest.json', { cache: 'no-cache' });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const items = await res.json();
+
+    // Populate dropdown
+    blankSelect.innerHTML = '';
+    items.forEach((it, idx) => {
+      const opt = document.createElement('option');
+      opt.value = it.file;
+      opt.textContent = it.label || labelFromFilename(it.file);
+      if (idx === 0) opt.selected = true;
+      blankSelect.appendChild(opt);
+    });
+
+    // Auto-load first item
+    if (items.length) {
+      await setBlankFromFile(items[0].file);
+    }
+  } catch (err) {
+    console.error('Failed to load shirt manifest:', err);
+    // Fallback: show a single "None" option
+    blankSelect.innerHTML = '<option value="">(No blanks found)</option>';
+  }
+}
+
+async function setBlankFromFile(filename) {
+  if (!filename) { state.blank = null; draw(); return; }
+  const img = new Image();
+  img.onload = () => { state.blank = img; draw(); };
+  img.onerror = () => { console.error('Failed to load blank image', filename); };
+  img.src = `./assets/shirt_blanks/${filename}`;
+}
+
 
   function loadImageFromFile(file) {
     return new Promise((resolve, reject) => {
@@ -154,12 +190,7 @@
   }
 
   // ----- Events -----
-  blankFile.addEventListener('change', async (e) => {
-    const f = e.target.files && e.target.files[0];
-    if (!f) return;
-    state.blank = await loadImageFromFile(f);
-    draw();
-  });
+
 
   artFile.addEventListener('change', async (e) => {
     const f = e.target.files && e.target.files[0];
@@ -174,6 +205,22 @@
 
   centerBtn.addEventListener('click', centerArt);
   fitBtn.addEventListener('click', fitArtToMaxArea);
+
+if (blankSelect) {
+  blankSelect.addEventListener('change', async (e) => {
+    const file = e.target.value || '';
+    await setBlankFromFile(file);
+  });
+}
+
+function labelFromFilename(name) {
+  const base = name.replace(/\.[^.]+$/, '');
+  return base.replace(/[_-]+/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+}
+
+
+
+
 
   // Mouse interactions
   canvas.addEventListener('mousedown', (e) => {
@@ -282,4 +329,5 @@
 
   // Boot
   setCanvasSize();
+  loadShirtManifest();
 })();

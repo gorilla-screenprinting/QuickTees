@@ -76,9 +76,9 @@ hr {
 
 .stage {
   position: relative;
-  border-radius: 12px;
+  border-radius: 0px;
   overflow: hidden;
-  background: linear-gradient(to bottom, #0b0f18, #111523);
+  background: linear-gradient(to bottom, #150c1c, #10020a);
   box-shadow: inset 0 0 0 1px #242938;
 }
 
