@@ -239,8 +239,84 @@ const PRINT = {
     draw();
   });
 
-  window.addEventListener('mouseup', () => { state.dragging = false; });
+// ===== Mobile touch support (single-finger drag, pinch-to-zoom) =====
+const pointers = new Map();
+let pinchStartDist = null;
+let pinchStartScale = 1;
 
+// map event coords to stage coords (same math as toStageXY)
+function getStageXYFromEvent(e) {
+  const r = canvas.getBoundingClientRect();
+  const xCss = (e.clientX - r.left);
+  const yCss = (e.clientY - r.top);
+  const scale = (canvas.width / (state.dpr || 1)) / STAGE.w;
+  return { x: xCss / scale, y: yCss / scale };
+}
+function dist(a, b) {
+  const dx = a.x - b.x, dy = a.y - b.y;
+  return Math.hypot(dx, dy);
+}
+
+canvas.addEventListener('pointerdown', (e) => {
+  canvas.setPointerCapture(e.pointerId);
+  const p = getStageXYFromEvent(e);
+  pointers.set(e.pointerId, p);
+
+  if (pointers.size === 1 && state.artImg && pointInArt(p.x, p.y)) {
+    state.dragging = true;
+    state.dragMode = 'move';   // on phones: 1 finger = move
+    state.last = p;
+  }
+
+  if (pointers.size === 2) {
+    const [a, b] = [...pointers.values()];
+    pinchStartDist = dist(a, b);
+    pinchStartScale = state.art.scale;
+  }
+  e.preventDefault();
+}, { passive: false });
+
+window.addEventListener('pointermove', (e) => {
+  if (!pointers.has(e.pointerId)) return;
+  const p = getStageXYFromEvent(e);
+  pointers.set(e.pointerId, p);
+
+  if (pointers.size === 1 && state.dragging) {
+    const dx = p.x - state.last.x;
+    const dy = p.y - state.last.y;
+    state.art.tx += dx;
+    state.art.ty += dy;
+    state.last = p;
+    draw();
+  } else if (pointers.size === 2) {
+    const [a, b] = [...pointers.values()];
+    const d = dist(a, b);
+    if (pinchStartDist) {
+      const factor = d / Math.max(1, pinchStartDist);
+      state.art.scale = pinchStartScale * factor;
+      if (typeof clampScale === 'function') clampScale();
+      draw();
+    }
+  }
+  e.preventDefault();
+}, { passive: false });
+
+function endPointer(e) {
+  pointers.delete(e.pointerId);
+  if (pointers.size < 2) {
+    pinchStartDist = null;
+  }
+  if (pointers.size === 0) {
+    state.dragging = false;
+  }
+}
+window.addEventListener('pointerup', endPointer);
+window.addEventListener('pointercancel', endPointer);
+
+
+
+
+  window.addEventListener('mouseup', () => { state.dragging = false; });
   window.addEventListener('resize', setCanvasSize);
   window.addEventListener('orientationchange', setCanvasSize);
 
