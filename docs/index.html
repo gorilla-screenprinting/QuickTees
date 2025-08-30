@@ -3,32 +3,36 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>PUT IN ON A SHIRT</title>
+  <title >PUT IN ON A SHIRT</title>
   <link href="https://fonts.googleapis.com/css2?family=Bagel+Fat+One&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="./style.css" />
 </head>
 
 <body>
+   <h1 class="fitline">  YOU SHOULD PUT IT ON A SHIRT  </h1>
   <div class="app">
-    <h1>YOU SHOULD PUT IT ON A SHIRT</h1>
     <aside class="panel">
       <div class="field">
-        <H1>CHOOSE YOUR SHIRT</H1>
+        <h1 class="fitline">pick a blank</h1>
         <select id="blankSelect"></select>
       </div>
 
 
-      <div class="field">
-        <label>UPLOAD YOUR ART</label>
-        <input id="artFile" type="file" accept="image/*,.svg" />
-        <small class="muted">You can move & scale after loading.</small>
-      </div>
+   <div class="field">
+  <label for="artFile" class="fitline">UPLOAD ART</label>
+  <input id="artFile" type="file" accept="image/*,.svg" hidden>
+  <button type="button" id="artFileBtn" class="primary" >Choose File</button>
+  <div id="artFileName" class="muted" class="fitline">(No file selected)</div>
+  <small class="muted" class="fitline">You can move & scale after loading.</small>
+</div>
+
+
 
       <div class="field">
-        <label>Transform Tips</label>
+        <label class="fitline">Transform Tips</label>
         <div class="hint">
-          <span class="kbd">Drag</span> move &nbsp;•&nbsp;
-          <span class="kbd">Shift + drag</span> scale &nbsp;•&nbsp;
+          <span class="kbd" class="fitline">Drag</span> move &nbsp;•&nbsp;
+          <span class="kbd" class="fitline">Shift + drag</span> scale &nbsp;•&nbsp;
         </div>
       </div>
 
@@ -49,4 +53,63 @@
 
   <script src="./app.js"></script>
 </body>
+
+<script>
+(function () {
+  function fitLine(el, min = 12, max = 200) {
+    if (!el || !el.parentElement) return;
+    const parentWidth = el.parentElement.clientWidth || 0;
+    if (!parentWidth) return;
+
+    // Start from max so we only ever scale down to fit
+    el.style.fontSize = max + 'px';
+
+    // Force layout and measure text width at max
+    const needed = el.scrollWidth || 1;
+    const scale  = parentWidth / needed;
+
+    // Clamp between min and max
+    const newSize = Math.max(min, Math.min(max, Math.floor(max * scale)));
+    el.style.fontSize = newSize + 'px';
+  }
+
+  function applyFitLines(root = document) {
+    root.querySelectorAll('.fitline').forEach(el => fitLine(el));
+  }
+
+  // Refit on resize (throttled via rAF)
+  let ticking = false;
+  function onResize() {
+    if (ticking) return;
+    ticking = true;
+    requestAnimationFrame(() => {
+      ticking = false;
+      applyFitLines();
+    });
+  }
+
+  // Observe container size changes (e.g., panel stacks on mobile)
+  const ro = new ResizeObserver(() => onResize());
+  window.addEventListener('load', () => {
+    // Wait for webfonts to be ready, then fit
+    if (document.fonts && document.fonts.ready) {
+      document.fonts.ready.then(() => {
+        applyFitLines();
+        // Start observing panels (and body as a fallback)
+        document.querySelectorAll('.panel, body').forEach(el => ro.observe(el));
+      });
+    } else {
+      applyFitLines();
+      document.querySelectorAll('.panel, body').forEach(el => ro.observe(el));
+    }
+  });
+
+  window.addEventListener('resize', onResize);
+})();
+</script>
+
+
+
+
+
 </html>
