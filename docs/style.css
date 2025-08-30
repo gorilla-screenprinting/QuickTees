@@ -1,8 +1,8 @@
 :root {
-  --bg:#005e4b;
+  --bg:#ffffff;
   --panel:#3a1c2d;
   --ink:#ffdc00;
-  --muted:#722811;
+  --muted:#005e4b;
   --accent:#fbed94;
 }
 
@@ -78,7 +78,8 @@ hr {
   position: relative;
   border-radius: 12px;
   overflow: hidden;
-  background: linear-gradient(to bottom, #312b35, #a08fa3);
+  --panel:#3a1c2d;
+  background: linear-gradient(to bottom, #312b35, #3a1c2d);
   box-shadow: inset 0 0 0 1px #242938;
 }
 

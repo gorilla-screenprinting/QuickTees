@@ -110,16 +110,12 @@ async function setBlankFromFile(filename) {
   }
 
   function pointInArt(x, y) {
-    if (!state.artImg) return false;
-    const { tx, ty, rot, scale } = state.art;
-    const dx = x - tx, dy = y - ty;
-    const cos = Math.cos(-rot), sin = Math.sin(-rot);
-    const lx = dx * cos - dy * sin;
-    const ly = dx * sin + dy * cos;
-    const hw = (state.artImg.width * scale)/2;
-    const hh = (state.artImg.height * scale)/2;
-    return (lx >= -hw && lx <= hw && ly >= -hh && ly <= hh);
-  }
+  if (!state.artImg) return false;
+  const hw = (state.artImg.width  * state.art.scale) / 2;
+  const hh = (state.artImg.height * state.art.scale) / 2;
+  return (x >= state.art.tx - hw && x <= state.art.tx + hw &&
+          y >= state.art.ty - hh && y <= state.art.ty + hh);
+}
 
   function maxScaleForPrintArea(imgW, imgH) {
     const sx = PRINT.w / imgW;
@@ -156,7 +152,6 @@ async function setBlankFromFile(filename) {
       ctx.save();
       clampScale();
       ctx.translate(state.art.tx, state.art.ty);
-      ctx.rotate(state.art.rot);
       const w = state.artImg.width * state.art.scale;
       const h = state.artImg.height * state.art.scale;
       ctx.drawImage(state.artImg, -w/2, -h/2, w, h);
@@ -276,7 +271,6 @@ function labelFromFilename(name) {
 
   if (pointers.size === 1 && state.artImg && pointInArt(p.x, p.y)) {
     state.dragging = true;
-    // Desktop: hold Shift to scale; otherwise move. (No rotation.)
     state.dragMode = e.shiftKey ? 'scale' : 'move';
     state.last = p;
   }
