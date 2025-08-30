@@ -270,22 +270,24 @@ function labelFromFilename(name) {
   }
 
   canvas.addEventListener('pointerdown', (e) => {
-    canvas.setPointerCapture(e.pointerId);
-    const p = toStageXY(e);
-    pointers.set(e.pointerId, p);
+  canvas.setPointerCapture(e.pointerId);
+  const p = toStageXY(e);
+  pointers.set(e.pointerId, p);
 
-    if (pointers.size === 1 && state.artImg && pointInArt(p.x, p.y)) {
-      state.dragging = true;
-      state.dragMode = 'move'; // mobile: 1 finger = move
-      state.last = p;
-    }
-    if (pointers.size === 2) {
-      const [a, b] = [...pointers.values()];
-      pinchStartDist = dist(a, b);
-      pinchStartScale = state.art.scale;
-    }
-    e.preventDefault();
-  }, { passive: false });
+  if (pointers.size === 1 && state.artImg && pointInArt(p.x, p.y)) {
+    state.dragging = true;
+    // Desktop: hold Shift to scale; otherwise move. (No rotation.)
+    state.dragMode = e.shiftKey ? 'scale' : 'move';
+    state.last = p;
+  }
+
+  if (pointers.size === 2) {
+    const [a, b] = [...pointers.values()];
+    pinchStartDist = dist(a, b);
+    pinchStartScale = state.art.scale;
+  }
+  e.preventDefault();
+}, { passive: false });
 
   window.addEventListener('pointermove', (e) => {
     if (!pointers.has(e.pointerId)) return;
@@ -293,22 +295,23 @@ function labelFromFilename(name) {
     pointers.set(e.pointerId, p);
 
     if (pointers.size === 1 && state.dragging) {
-      const dx = p.x - state.last.x;
-      const dy = p.y - state.last.y;
-      state.art.tx += dx;
-      state.art.ty += dy;
-      state.last = p;
-      draw();
-    } else if (pointers.size === 2) {
-      const [a, b] = [...pointers.values()];
-      const d = dist(a, b);
-      if (pinchStartDist) {
-        const factor = d / Math.max(1, pinchStartDist);
-        state.art.scale = pinchStartScale * factor;
-        clampScale();
-        draw();
-      }
-    }
+  if (state.dragMode === 'move') {
+    const dx = p.x - state.last.x;
+    const dy = p.y - state.last.y;
+    state.art.tx += dx;
+    state.art.ty += dy;
+  } else if (state.dragMode === 'scale') {
+    // Same logic as your mouse scaling: scale by radial distance change
+    const d1 = Math.hypot(state.last.x - state.art.tx, state.last.y - state.art.ty);
+    const d2 = Math.hypot(p.x - state.art.tx, p.y - state.art.ty);
+    const s = d2 / Math.max(1, d1);
+    state.art.scale *= s;
+    clampScale();
+  }
+  state.last = p;
+  draw();
+}
+
     e.preventDefault();
   }, { passive: false });
 
