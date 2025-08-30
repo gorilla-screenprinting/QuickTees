@@ -1,5 +1,5 @@
 :root {
-  --bg: #ffffff;
+  --bg: #fbed94;
   --panel: #005e4b;
   --ink: #ffdc00;
   --muted: #fbed94;
@@ -15,15 +15,20 @@ html, body {
   color: var(--ink);
   font-family: "Bagel Fat One", cursive;
 }
-
-.fitline {
-  display: block;
-  width: 100%;       /* make sure we’re filling the container */
-  white-space: nowrap;
-  line-height: 1;
-  overflow: hidden;  /* prevents occasional 1px wrap/jitter */
+h1 {
+  color: var(--panel);
 }
 
+
+.fitline{
+  display:block;
+  width:100%;
+  white-space:nowrap;
+  line-height:1.18;
+  padding-top:0.05em;
+  padding-bottom:0.14em;
+  overflow:visible; /* don’t clip */
+}
 
 
 /* Layout */
@@ -63,14 +68,17 @@ html, body {
 /* Buttons */
 button {
   display: block;
+  line-height:1.2; 
+  padding:0.45em 0;
   width: 100%;
   margin: 6px 0;
-  padding: 12px;
   border: none;
   border-radius: 10px;
   font-family: inherit;
-  font-size: clamp(14px, 3vw, 32px); /* min, preferred, max */
+  font-size: inherit;
   cursor: pointer;
+  background: var(--muted);
+  color: var(--panel);
 }
 button.primary {
   background: var(--ink);
@@ -87,6 +95,11 @@ select, input, textarea {
   background: var(--bg);
   color: var(--panel);
   font-family: inherit;
+}
+
+select { 
+  line-height: 1.2; 
+  padding:0.5em 0.6em;
 }
 
 /* Stage */

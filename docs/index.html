@@ -8,22 +8,146 @@
   <link rel="stylesheet" href="./style.css" />
 </head>
 
+<script>
+(function () {
+  // ---- Generic single-line fitter (for .fitline + buttons) ----
+  function fitLine(el, min = 12, max = 200) {
+  if (!el || !el.parentElement) return;
+  const parentWidth = el.parentElement.clientWidth || 0;
+  if (!parentWidth) return;
+
+  const dataMin = parseFloat(el.dataset.min);
+  const dataMax = parseFloat(el.dataset.max);
+  if (!Number.isNaN(dataMin)) min = dataMin;
+  if (!Number.isNaN(dataMax)) max = dataMax;
+
+  el.style.fontSize = max + 'px';
+  const needed = el.scrollWidth || 1;
+  const scale  = parentWidth / needed;
+
+  const SAFETY = 0.98; // <— add this here too
+  const newSize = Math.max(min, Math.min(max, Math.floor(max * scale * SAFETY)));
+  el.style.fontSize = newSize + 'px';
+}
+
+
+  // ---- Select fitter (measure widest option) ----
+  let measurer;
+  function getMeasurer() {
+    if (measurer) return measurer;
+    measurer = document.createElement('span');
+    Object.assign(measurer.style, {
+      position: 'fixed',
+      left: '-9999px',
+      top: '0',
+      whiteSpace: 'nowrap',
+      lineHeight: '1',
+      visibility: 'hidden',
+    });
+    document.body.appendChild(measurer);
+    return measurer;
+  }
+  function copyFontStyles(from, to) {
+    const cs = getComputedStyle(from);
+    to.style.fontFamily    = cs.fontFamily;
+    to.style.fontWeight    = cs.fontWeight;
+    to.style.letterSpacing = cs.letterSpacing;
+    to.style.fontVariant   = cs.fontVariant;
+    to.style.textTransform = cs.textTransform;
+  }
+  function fitSelect(sel, min = 12, max = 60, paddingPx = 28) {
+    if (!sel) return;
+    const parentWidth = sel.parentElement?.clientWidth || sel.clientWidth || 0;
+    if (!parentWidth) return;
+
+    // Find longest visible label
+    let longest = '';
+    for (const opt of sel.options) {
+      const t = (opt.text || '').trim();
+      if (t.length > longest.length) longest = t;
+    }
+    if (!longest) longest = sel.selectedOptions[0]?.text || sel.value || '…';
+
+    const m = getMeasurer();
+    copyFontStyles(sel, m);
+    m.style.fontSize = max + 'px';
+    m.textContent = longest;
+
+    const needed = m.scrollWidth || 1;
+    const available = Math.max(1, parentWidth - paddingPx); // room for arrow/padding
+    const scale = available / needed;
+    const SAFETY = 0.98;
+    const newSize = Math.max(min, Math.min(max, Math.floor(max * scale * SAFETY)));
+
+    sel.style.fontSize = newSize + 'px';
+    sel.style.lineHeight = '1.1'; // prevent descender clipping
+  }
+
+  function applyFits(root = document) {
+    // Existing: headings/labels with .fitline
+    root.querySelectorAll('.fitline').forEach(el => fitLine(el));
+
+    // New: auto-fit ALL buttons (no class needed)
+    root.querySelectorAll('button').forEach(btn => fitLine(btn, 12, 48));
+
+    // New: auto-fit ALL selects
+    root.querySelectorAll('select').forEach(sel => {
+      const min = parseFloat(sel.dataset.min) || 12;
+      const max = parseFloat(sel.dataset.max) || 48;
+      fitSelect(sel, min, max);
+    });
+  }
+
+  // rAF-throttled resize
+  let ticking = false;
+  function onResize() {
+    if (ticking) return;
+    ticking = true;
+    requestAnimationFrame(() => { ticking = false; applyFits(); });
+  }
+
+  // Observe container changes (e.g., panel stacks on mobile)
+  const ro = new ResizeObserver(() => onResize());
+
+  window.addEventListener('load', () => {
+    const run = () => {
+      applyFits();
+      document.querySelectorAll('.panel, body').forEach(el => ro.observe(el));
+      // Refit when select value changes (label length may change)
+      document.querySelectorAll('select').forEach(sel => {
+        sel.addEventListener('change', applyFits);
+      });
+    };
+    if (document.fonts && document.fonts.ready) {
+      document.fonts.ready.then(run);
+    } else {
+      run();
+    }
+  });
+
+  window.addEventListener('resize', onResize);
+})();
+</script>
+
+
+
 <body>
-   <h1 class="fitline">  YOU SHOULD PUT IT ON A SHIRT  </h1>
+   <h1 class="fitline">  You should put it on a skirt  </h1>
   <div class="app">
     <aside class="panel">
       <div class="field">
-        <h1 class="fitline">pick a blank</h1>
+        <h1 class="fitline">1: Pick a T-shirt</h1>
         <select id="blankSelect"></select>
       </div>
 
 
    <div class="field">
-  <label for="artFile" class="fitline">UPLOAD ART</label>
+  <label for="artFile" class="fitline">2: Upload yr art</label>
   <input id="artFile" type="file" accept="image/*,.svg" hidden>
   <button type="button" id="artFileBtn" class="primary" >Choose File</button>
-  <div id="artFileName" class="muted" class="fitline">(No file selected)</div>
-  <small class="muted" class="fitline">You can move & scale after loading.</small>
+<div id="artFileName" class="muted fitline">(No file selected)</div>
+<small class="muted fitline">You can move &amp; scale after loading.</small>
+
 </div>
 
 
@@ -38,7 +162,7 @@
 
       <div class="row">
         <button id="centerBtn">Center</button>
-        <button id="fitBtn" class="primary">Fit to Print Area</button>
+        <button id="fitBtn" class="primary">Max it Out</button>
       </div>
     </aside>
 
@@ -53,63 +177,6 @@
 
   <script src="./app.js"></script>
 </body>
-
-<script>
-(function () {
-  function fitLine(el, min = 12, max = 200) {
-    if (!el || !el.parentElement) return;
-    const parentWidth = el.parentElement.clientWidth || 0;
-    if (!parentWidth) return;
-
-    // Start from max so we only ever scale down to fit
-    el.style.fontSize = max + 'px';
-
-    // Force layout and measure text width at max
-    const needed = el.scrollWidth || 1;
-    const scale  = parentWidth / needed;
-
-    // Clamp between min and max
-    const newSize = Math.max(min, Math.min(max, Math.floor(max * scale)));
-    el.style.fontSize = newSize + 'px';
-  }
-
-  function applyFitLines(root = document) {
-    root.querySelectorAll('.fitline').forEach(el => fitLine(el));
-  }
-
-  // Refit on resize (throttled via rAF)
-  let ticking = false;
-  function onResize() {
-    if (ticking) return;
-    ticking = true;
-    requestAnimationFrame(() => {
-      ticking = false;
-      applyFitLines();
-    });
-  }
-
-  // Observe container size changes (e.g., panel stacks on mobile)
-  const ro = new ResizeObserver(() => onResize());
-  window.addEventListener('load', () => {
-    // Wait for webfonts to be ready, then fit
-    if (document.fonts && document.fonts.ready) {
-      document.fonts.ready.then(() => {
-        applyFitLines();
-        // Start observing panels (and body as a fallback)
-        document.querySelectorAll('.panel, body').forEach(el => ro.observe(el));
-      });
-    } else {
-      applyFitLines();
-      document.querySelectorAll('.panel, body').forEach(el => ro.observe(el));
-    }
-  });
-
-  window.addEventListener('resize', onResize);
-})();
-</script>
-
-
-
 
 
 </html>
