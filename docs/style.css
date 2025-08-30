@@ -12,7 +12,7 @@ html, body {
   margin:0;
   background:var(--bg);
   color:var(--ink);
-  font-family:system-ui, -apple-system, Segoe UI, Roboto, Arial;
+  font-family: "Bagel Fat One", cursive;
   overflow:hidden;
   overscroll-behavior:none; /* tames iOS/Android rubber-band */
 }
@@ -39,9 +39,9 @@ html, body {
   box-shadow:0 8px 24px rgba(0,0,0,.25);
   overflow:auto;
 }
-.panel h2 { margin:4px 0 12px; font-size:1.1rem; }
+.panel h2 { margin:4px 0 12px; font-size:1.1rem;color:var(--ink); }
 .field { margin-bottom:14px; }
-.field label { display:block; font-size:.9rem; margin-bottom:6px; color:#cfd6e4; }
+.field label { display:block; font-size:.9rem; margin-bottom:6px; color:var(--ink); }
 .muted { color:var(--muted); display:block; margin-top:6px; line-height:1.35; }
 .row { display:flex; gap:8px; align-items:center; }
 
@@ -88,4 +88,8 @@ hr {
   height: 100%;
   display: block;
   touch-action: none; 
+}
+
+button, input, select, option, textarea {
+  font-family: inherit !important;
 }
