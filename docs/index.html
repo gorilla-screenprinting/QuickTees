@@ -1,138 +1,139 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title >PUT IN ON A SHIRT</title>
+  <title>PUT IN ON A SHIRT</title>
   <link href="https://fonts.googleapis.com/css2?family=Bagel+Fat+One&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="./style.css" />
 </head>
 
 <script>
-(function () {
-  // ---- Generic single-line fitter (for .fitline + buttons) ----
-  function fitLine(el, min = 12, max = 200) {
-  if (!el || !el.parentElement) return;
-  const parentWidth = el.parentElement.clientWidth || 0;
-  if (!parentWidth) return;
+  (function () {
+    // ---- Generic single-line fitter (for .fitline + buttons) ----
+    function fitLine(el, min = 12, max = 200) {
+      if (!el || !el.parentElement) return;
+      const parentWidth = el.parentElement.clientWidth || 0;
+      if (!parentWidth) return;
 
-  const dataMin = parseFloat(el.dataset.min);
-  const dataMax = parseFloat(el.dataset.max);
-  if (!Number.isNaN(dataMin)) min = dataMin;
-  if (!Number.isNaN(dataMax)) max = dataMax;
+      const dataMin = parseFloat(el.dataset.min);
+      const dataMax = parseFloat(el.dataset.max);
+      if (!Number.isNaN(dataMin)) min = dataMin;
+      if (!Number.isNaN(dataMax)) max = dataMax;
 
-  el.style.fontSize = max + 'px';
-  const needed = el.scrollWidth || 1;
-  const scale  = parentWidth / needed;
+      el.style.fontSize = max + 'px';
+      const needed = el.scrollWidth || 1;
+      const scale = parentWidth / needed;
 
-  const SAFETY = 0.98; // <— add this here too
-  const newSize = Math.max(min, Math.min(max, Math.floor(max * scale * SAFETY)));
-  el.style.fontSize = newSize + 'px';
-}
-
-
-  // ---- Select fitter (measure widest option) ----
-  let measurer;
-  function getMeasurer() {
-    if (measurer) return measurer;
-    measurer = document.createElement('span');
-    Object.assign(measurer.style, {
-      position: 'fixed',
-      left: '-9999px',
-      top: '0',
-      whiteSpace: 'nowrap',
-      lineHeight: '1',
-      visibility: 'hidden',
-    });
-    document.body.appendChild(measurer);
-    return measurer;
-  }
-  function copyFontStyles(from, to) {
-    const cs = getComputedStyle(from);
-    to.style.fontFamily    = cs.fontFamily;
-    to.style.fontWeight    = cs.fontWeight;
-    to.style.letterSpacing = cs.letterSpacing;
-    to.style.fontVariant   = cs.fontVariant;
-    to.style.textTransform = cs.textTransform;
-  }
-  function fitSelect(sel, min = 12, max = 60, paddingPx = 28) {
-    if (!sel) return;
-    const parentWidth = sel.parentElement?.clientWidth || sel.clientWidth || 0;
-    if (!parentWidth) return;
-
-    // Find longest visible label
-    let longest = '';
-    for (const opt of sel.options) {
-      const t = (opt.text || '').trim();
-      if (t.length > longest.length) longest = t;
+      const SAFETY = 0.98; // <— add this here too
+      const newSize = Math.max(min, Math.min(max, Math.floor(max * scale * SAFETY)));
+      el.style.fontSize = newSize + 'px';
     }
-    if (!longest) longest = sel.selectedOptions[0]?.text || sel.value || '…';
 
-    const m = getMeasurer();
-    copyFontStyles(sel, m);
-    m.style.fontSize = max + 'px';
-    m.textContent = longest;
 
-    const needed = m.scrollWidth || 1;
-    const available = Math.max(1, parentWidth - paddingPx); // room for arrow/padding
-    const scale = available / needed;
-    const SAFETY = 0.98;
-    const newSize = Math.max(min, Math.min(max, Math.floor(max * scale * SAFETY)));
-
-    sel.style.fontSize = newSize + 'px';
-    sel.style.lineHeight = '1.1'; // prevent descender clipping
-  }
-
-  function applyFits(root = document) {
-    // Existing: headings/labels with .fitline
-    root.querySelectorAll('.fitline').forEach(el => fitLine(el));
-
-    // New: auto-fit ALL buttons (no class needed)
-    root.querySelectorAll('button').forEach(btn => fitLine(btn, 12, 48));
-
-    // New: auto-fit ALL selects
-    root.querySelectorAll('select').forEach(sel => {
-      const min = parseFloat(sel.dataset.min) || 12;
-      const max = parseFloat(sel.dataset.max) || 48;
-      fitSelect(sel, min, max);
-    });
-  }
-
-  // rAF-throttled resize
-  let ticking = false;
-  function onResize() {
-    if (ticking) return;
-    ticking = true;
-    requestAnimationFrame(() => { ticking = false; applyFits(); });
-  }
-
-  // Observe container changes (e.g., panel stacks on mobile)
-  const ro = new ResizeObserver(() => onResize());
-
-  window.addEventListener('load', () => {
-    const run = () => {
-      applyFits();
-      document.querySelectorAll('.panel, body').forEach(el => ro.observe(el));
-      // Refit when select value changes (label length may change)
-      document.querySelectorAll('select').forEach(sel => {
-        sel.addEventListener('change', applyFits);
+    // ---- Select fitter (measure widest option) ----
+    let measurer;
+    function getMeasurer() {
+      if (measurer) return measurer;
+      measurer = document.createElement('span');
+      Object.assign(measurer.style, {
+        position: 'fixed',
+        left: '-9999px',
+        top: '0',
+        whiteSpace: 'nowrap',
+        lineHeight: '1',
+        visibility: 'hidden',
       });
-    };
-    if (document.fonts && document.fonts.ready) {
-      document.fonts.ready.then(run);
-    } else {
-      run();
+      document.body.appendChild(measurer);
+      return measurer;
     }
-  });
+    function copyFontStyles(from, to) {
+      const cs = getComputedStyle(from);
+      to.style.fontFamily = cs.fontFamily;
+      to.style.fontWeight = cs.fontWeight;
+      to.style.letterSpacing = cs.letterSpacing;
+      to.style.fontVariant = cs.fontVariant;
+      to.style.textTransform = cs.textTransform;
+    }
+    function fitSelect(sel, min = 12, max = 60, paddingPx = 28) {
+      if (!sel) return;
+      const parentWidth = sel.parentElement?.clientWidth || sel.clientWidth || 0;
+      if (!parentWidth) return;
 
-  window.addEventListener('resize', onResize);
-})();
+      // Find longest visible label
+      let longest = '';
+      for (const opt of sel.options) {
+        const t = (opt.text || '').trim();
+        if (t.length > longest.length) longest = t;
+      }
+      if (!longest) longest = sel.selectedOptions[0]?.text || sel.value || '…';
+
+      const m = getMeasurer();
+      copyFontStyles(sel, m);
+      m.style.fontSize = max + 'px';
+      m.textContent = longest;
+
+      const needed = m.scrollWidth || 1;
+      const available = Math.max(1, parentWidth - paddingPx); // room for arrow/padding
+      const scale = available / needed;
+      const SAFETY = 0.98;
+      const newSize = Math.max(min, Math.min(max, Math.floor(max * scale * SAFETY)));
+
+      sel.style.fontSize = newSize + 'px';
+      sel.style.lineHeight = '1.1'; // prevent descender clipping
+    }
+
+    function applyFits(root = document) {
+      // Existing: headings/labels with .fitline
+      root.querySelectorAll('.fitline').forEach(el => fitLine(el));
+
+      // New: auto-fit ALL buttons (no class needed)
+      root.querySelectorAll('button').forEach(btn => fitLine(btn, 12, 48));
+
+      // New: auto-fit ALL selects
+      root.querySelectorAll('select').forEach(sel => {
+        const min = parseFloat(sel.dataset.min) || 12;
+        const max = parseFloat(sel.dataset.max) || 48;
+        fitSelect(sel, min, max);
+      });
+    }
+
+    // rAF-throttled resize
+    let ticking = false;
+    function onResize() {
+      if (ticking) return;
+      ticking = true;
+      requestAnimationFrame(() => { ticking = false; applyFits(); });
+    }
+
+    // Observe container changes (e.g., panel stacks on mobile)
+    const ro = new ResizeObserver(() => onResize());
+
+    window.addEventListener('load', () => {
+      const run = () => {
+        applyFits();
+        document.querySelectorAll('.panel, body').forEach(el => ro.observe(el));
+        // Refit when select value changes (label length may change)
+        document.querySelectorAll('select').forEach(sel => {
+          sel.addEventListener('change', applyFits);
+        });
+      };
+      if (document.fonts && document.fonts.ready) {
+        document.fonts.ready.then(run);
+      } else {
+        run();
+      }
+    });
+
+    window.addEventListener('resize', onResize);
+  })();
 </script>
 
 
 
 <body>
-   <h1 class="fitline">  You should put it on a skirt  </h1>
+  <h1 class="fitline">&nbsp;You should put it on a shirt</h1>
   <div class="app">
     <aside class="panel">
       <div class="field">
@@ -141,24 +142,27 @@
       </div>
 
 
-   <div class="field">
-  <label for="artFile" class="fitline">2: Upload yr art</label>
-  <input id="artFile" type="file" accept="image/*,.svg" hidden>
-  <button type="button" id="artFileBtn" class="primary" >Choose File</button>
-<div id="artFileName" class="muted fitline">(No file selected)</div>
-<small class="muted fitline">You can move &amp; scale after loading.</small>
+      <div class="field">
+        <label for="artFile" class="fitline">2: Upload yr art</label>
+        <input id="artFile" type="file" accept="image/*,.svg" hidden>
+        <button type="button" id="artFileBtn" class="primary">Choose File</button>
+        <div id="artFileName" class="muted fitline">(No file selected)</div>
 
+      </div>
+
+
+
+   <div class="field">
+  <h1 class="fitline">3: Get it perfect</h1>
+  <ul class="tips">
+    <li>Drag to move</li>
+    <li>Shift + drag to scale (desktop)</li>
+    <li>Pinch with two fingers to zoom (mobile)</li>
+    <li>“Center” to recenter your art</li>
+    <li>“Max it Out” to fit inside print area</li>
+  </ul>
 </div>
 
-
-
-      <div class="field">
-        <label class="fitline">Transform Tips</label>
-        <div class="hint">
-          <span class="kbd" class="fitline">Drag</span> move &nbsp;•&nbsp;
-          <span class="kbd" class="fitline">Shift + drag</span> scale &nbsp;•&nbsp;
-        </div>
-      </div>
 
       <div class="row">
         <button id="centerBtn">Center</button>
@@ -177,6 +181,5 @@
 
   <script src="./app.js"></script>
 </body>
-
 
 </html>

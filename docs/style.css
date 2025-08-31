@@ -1,12 +1,17 @@
+/* =========================================================
+   0) Design Tokens
+   ========================================================= */
 :root {
-  --bg: #fbed94;
-  --panel: #005e4b;
-  --ink: #ffdc00;
-  --muted: #fbed94;
-  --accent: #fbed94;
+  --bg:     #fbed94;
+  --panel:  #005e5b;
+  --ink:    #ffdc00;
+  --muted:  #fbed94;
+  --accent: #3a1c2d;
 }
 
-/* Reset & base */
+/* =========================================================
+   1) Reset & Base
+   ========================================================= */
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 html, body {
@@ -15,23 +20,45 @@ html, body {
   color: var(--ink);
   font-family: "Bagel Fat One", cursive;
 }
-h1 {
-  color: var(--panel);
+
+/* Headings default color (page title etc.) */
+h1 { color: var(--panel); }
+
+/* Improve font rendering + prevent faux bold (Bagel Fat One is single-weight) */
+h1, h2, h3, h4, h5, h6,
+label, button, select, input, textarea {
+  font-weight: 400 !important;
+}
+html, body, .panel, .fitline {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
-
-.fitline{
-  display:block;
-  width:100%;
-  white-space:nowrap;
-  line-height:1.18;
-  padding-top:0.05em;
-  padding-bottom:0.14em;
-  overflow:visible; /* don’t clip */
+/* Keyboard & accessibility focus */
+:focus-visible {
+  outline: 3px solid var(--ink);
+  outline-offset: 2px;
+  border-radius: 8px;
 }
 
+/* =========================================================
+   2) Utilities
+   ========================================================= */
+/* Single-line auto-fit targets (script measures & sets font-size) */
+.fitline {
+  display: block;
+  width: 100%;
+  white-space: nowrap;
+  line-height: 1.18;         /* extra headroom to avoid clipping */
+  padding-top: 0.05em;
+  padding-bottom: 0.14em;    /* helps descenders not get clipped */
+  overflow: visible;         /* avoid accidental clip on wrap calc */
+}
 
-/* Layout */
+/* =========================================================
+   3) Layout
+   ========================================================= */
 .app {
   display: grid;
   grid-template-columns: 320px 1fr;
@@ -39,76 +66,16 @@ h1 {
   height: 100%;
   padding: 16px;
 }
-@media (max-width: 900px) {
-  .app {
-    grid-template-columns: 1fr;
-    height: 100dvh;
-  }
-  .stage { height: calc(100dvh - 230px); }
-}
 
-/* Panel */
-.panel {
-  background: var(--panel);
-  border-radius: 12px;
-  padding: 16px;
-  overflow: auto;
-}
-.panel h1,
-.panel h2,
-.panel label {
-  margin-bottom: 12px;
-  color: var(--ink);
-}
-
-/* Form fields */
-.field { margin-bottom: 16px; }
-.muted { color: var(--muted); font-size: 0.9rem; }
-
-/* Buttons */
-button {
-  display: block;
-  line-height:1.2; 
-  padding:0.45em 0;
-  width: 100%;
-  margin: 6px 0;
-  border: none;
-  border-radius: 10px;
-  font-family: inherit;
-  font-size: inherit;
-  cursor: pointer;
-  background: var(--muted);
-  color: var(--panel);
-}
-button.primary {
-  background: var(--ink);
-  color: var(--panel);
-}
-button:disabled { opacity: 0.5; cursor: not-allowed; }
-
-/* Inputs */
-select, input, textarea {
-  width: 100%;
-  padding: 10px 12px;
-  border-radius: 10px;
-  border: none;
-  background: var(--bg);
-  color: var(--panel);
-  font-family: inherit;
-}
-
-select { 
-  line-height: 1.2; 
-  padding:0.5em 0.6em;
-}
-
-/* Stage */
+/* Stage area (canvas container) */
 .stage {
   position: relative;
   background: var(--panel);
   border-radius: 12px;
   overflow: hidden;
 }
+
+/* Canvas */
 #stage {
   width: 100%;
   height: 100%;
@@ -116,14 +83,113 @@ select {
   touch-action: none;
 }
 
-/* Kill default bold on headings + controls (Bagel Fat One has 1 weight) */
-h1, h2, h3, h4, h5, h6,
-label, button, select, input, textarea {
-  font-weight: 400 !important;  /* force normal, avoid faux-bold */
-}
-.fitline, .panel, html, body {
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  text-rendering: optimizeLegibility;
+/* List styling for tips */
+.tips {
+  margin: 6px 0 0;
+  padding-left: 1.2em;         /* indent bullets */
+  color: var(--muted);          /* softer than headings */
+  line-height: 1.25;
 }
 
+.tips li {
+  margin: 0.25em 0;
+}
+
+/* Optional: make bullets match your theme color */
+.tips li::marker { color: var(--ink); }
+
+
+/* =========================================================
+   4) Panel
+   ========================================================= */
+.panel {
+  background: var(--panel);
+  border-radius: 12px;
+  padding: 16px;
+  overflow: auto;
+}
+.panel h1, .panel h2, .panel label {
+  margin-bottom: 12px;
+  color: var(--ink);
+}
+
+/* Field block spacing */
+.field { margin-bottom: 16px; }
+
+/* Muted helper text */
+.muted { color: var(--muted); font-size: 0.9rem; }
+
+/* =========================================================
+   5) Controls: Buttons & Inputs
+   ========================================================= */
+/* Buttons */
+/* Base button (already in your CSS) */
+button {
+  display: block;
+  width: 100%;
+  margin: 6px 0;
+  padding: 0.45em 0;
+  border: none;
+  border-radius: 10px;
+  font-family: inherit;
+  font-size: inherit;
+  line-height: 1.2;
+  cursor: pointer;
+  background: var(--muted);
+  color: var(--panel);
+  transition: background 0.2s, transform 0.1s; /* smooth feedback */
+}
+
+/* Primary variant */
+button.primary {
+  background: var(--ink);
+  color: var(--panel);
+}
+
+/* Hover (mouse over) */
+button:hover:not(:disabled) {
+  background: var(--accent); /* or darken/lighten the base */
+  color: var(--ink)
+}
+
+/* Active (while pressed down) */
+button:active:not(:disabled) {
+  transform: scale(0.96);   /* little "press" effect */
+  background: var(--ink);   /* keep contrast high */
+  color: var(--accent);
+}
+
+/* Keyboard focus */
+button:focus-visible {
+  outline: 3px solid var(--ink);
+  outline-offset: 2px;
+}
+
+button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Inputs (select / text / textarea) */
+select, input, textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: none;
+  border-radius: 10px;
+  background: var(--bg);
+  color: var(--panel);
+  font-family: inherit;
+  line-height: 1.2;
+}
+select { padding: 0.5em 0.6em; }
+
+/* =========================================================
+   6) Responsive
+   ========================================================= */
+@media (max-width: 900px) {
+  .app {
+    grid-template-columns: 1fr;
+    height: 100dvh;
+  }
+  .stage {
+    /* leave room for the panel when stacked on mobile */
+    height: calc(100dvh - 280px);
+  }
+}
