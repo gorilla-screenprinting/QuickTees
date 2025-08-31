@@ -52,7 +52,7 @@ html, body, .panel, .fitline {
   white-space: nowrap;
   line-height: 1.18;         /* extra headroom to avoid clipping */
   padding-top: 0.05em;
-  padding-bottom: 0.14em;    /* helps descenders not get clipped */
+  padding-bottom: 0.1em;    /* helps descenders not get clipped */
   overflow: visible;         /* avoid accidental clip on wrap calc */
 }
 
@@ -117,7 +117,7 @@ html, body, .panel, .fitline {
 .field { margin-bottom: 16px; }
 
 /* Muted helper text */
-.muted { color: var(--muted); font-size: 0.9rem; }
+.muted { color: var(--muted); font-size: 1.4rem; }
 
 /* =========================================================
    5) Controls: Buttons & Inputs
