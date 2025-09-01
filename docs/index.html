@@ -163,6 +163,27 @@
   </ul>
 </div>
 
+<!-- BG removal controls -->
+<div id="bgControls" class="field">
+  <div id="bgSwatches" style="display:flex;gap:6px;margin-bottom:8px;"></div>
+
+  <label for="bgMode">Background removal</label>
+  <select id="bgMode">
+    <option value="none" selected>None</option>
+    <option value="wand">Edge (Wand)</option>
+    <option value="threshold">Global (Threshold)</option>
+  </select>
+
+  <label for="bgTol" style="margin-top:8px;display:block;">Tolerance</label>
+  <input id="bgTol" type="range" min="5" max="90" value="40" />
+
+  <label for="bgFeather" style="margin-top:8px;display:block;">Feather (px)</label>
+  <input id="bgFeather" type="range" min="0" max="3" step="1" value="1" />
+</div>
+
+
+
+
 
       <div class="row">
         <button id="centerBtn">Center</button>
