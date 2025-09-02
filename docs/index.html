@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
@@ -9,181 +8,75 @@
   <link rel="stylesheet" href="./style.css" />
 </head>
 
-<script>
-  (function () {
-    // ---- Generic single-line fitter (for .fitline + buttons) ----
-    function fitLine(el, min = 12, max = 200) {
-      if (!el || !el.parentElement) return;
-      const parentWidth = el.parentElement.clientWidth || 0;
-      if (!parentWidth) return;
-
-      const dataMin = parseFloat(el.dataset.min);
-      const dataMax = parseFloat(el.dataset.max);
-      if (!Number.isNaN(dataMin)) min = dataMin;
-      if (!Number.isNaN(dataMax)) max = dataMax;
-
-      el.style.fontSize = max + 'px';
-      const needed = el.scrollWidth || 1;
-      const scale = parentWidth / needed;
-
-      const SAFETY = 0.98; // <— add this here too
-      const newSize = Math.max(min, Math.min(max, Math.floor(max * scale * SAFETY)));
-      el.style.fontSize = newSize + 'px';
-    }
-
-
-    // ---- Select fitter (measure widest option) ----
-    let measurer;
-    function getMeasurer() {
-      if (measurer) return measurer;
-      measurer = document.createElement('span');
-      Object.assign(measurer.style, {
-        position: 'fixed',
-        left: '-9999px',
-        top: '0',
-        whiteSpace: 'nowrap',
-        lineHeight: '1',
-        visibility: 'hidden',
-      });
-      document.body.appendChild(measurer);
-      return measurer;
-    }
-    function copyFontStyles(from, to) {
-      const cs = getComputedStyle(from);
-      to.style.fontFamily = cs.fontFamily;
-      to.style.fontWeight = cs.fontWeight;
-      to.style.letterSpacing = cs.letterSpacing;
-      to.style.fontVariant = cs.fontVariant;
-      to.style.textTransform = cs.textTransform;
-    }
-    function fitSelect(sel, min = 12, max = 60, paddingPx = 28) {
-      if (!sel) return;
-      const parentWidth = sel.parentElement?.clientWidth || sel.clientWidth || 0;
-      if (!parentWidth) return;
-
-      // Find longest visible label
-      let longest = '';
-      for (const opt of sel.options) {
-        const t = (opt.text || '').trim();
-        if (t.length > longest.length) longest = t;
-      }
-      if (!longest) longest = sel.selectedOptions[0]?.text || sel.value || '…';
-
-      const m = getMeasurer();
-      copyFontStyles(sel, m);
-      m.style.fontSize = max + 'px';
-      m.textContent = longest;
-
-      const needed = m.scrollWidth || 1;
-      const available = Math.max(1, parentWidth - paddingPx); // room for arrow/padding
-      const scale = available / needed;
-      const SAFETY = 0.98;
-      const newSize = Math.max(min, Math.min(max, Math.floor(max * scale * SAFETY)));
-
-      sel.style.fontSize = newSize + 'px';
-      sel.style.lineHeight = '1.1'; // prevent descender clipping
-    }
-
-    function applyFits(root = document) {
-      // Existing: headings/labels with .fitline
-      root.querySelectorAll('.fitline').forEach(el => fitLine(el));
-
-      // New: auto-fit ALL buttons (no class needed)
-      root.querySelectorAll('button').forEach(btn => fitLine(btn, 12, 48));
-
-      // New: auto-fit ALL selects
-      root.querySelectorAll('select').forEach(sel => {
-        const min = parseFloat(sel.dataset.min) || 12;
-        const max = parseFloat(sel.dataset.max) || 48;
-        fitSelect(sel, min, max);
-      });
-    }
-
-    // rAF-throttled resize
-    let ticking = false;
-    function onResize() {
-      if (ticking) return;
-      ticking = true;
-      requestAnimationFrame(() => { ticking = false; applyFits(); });
-    }
-
-    // Observe container changes (e.g., panel stacks on mobile)
-    const ro = new ResizeObserver(() => onResize());
-
-    window.addEventListener('load', () => {
-      const run = () => {
-        applyFits();
-        document.querySelectorAll('.panel, body').forEach(el => ro.observe(el));
-        // Refit when select value changes (label length may change)
-        document.querySelectorAll('select').forEach(sel => {
-          sel.addEventListener('change', applyFits);
-        });
-      };
-      if (document.fonts && document.fonts.ready) {
-        document.fonts.ready.then(run);
-      } else {
-        run();
-      }
-    });
-
-    window.addEventListener('resize', onResize);
-  })();
-</script>
-
-
-
 <body>
   <h1 class="fitline">&nbsp;You should put it on a shirt</h1>
+
   <div class="app">
-    <aside class="panel">
+    <aside class="panel" aria-label="Controls">
       <div class="field">
         <h1 class="fitline">1: Pick a T-shirt</h1>
-        <select id="blankSelect"></select>
+
+        <!-- BagelSelect: BLANKS (keeps your #blankSelect for app.js) -->
+        <div class="bagel-select" data-name="blank">
+          <button class="bagel-trigger" type="button" aria-haspopup="listbox" aria-expanded="false">
+            <span class="bagel-trigger__label">Choose a blank…</span>
+            <svg class="bagel-trigger__arrow" viewBox="0 0 10 6" aria-hidden="true">
+              <path d="M0 0l5 6 5-6z" fill="currentColor"/>
+            </svg>
+          </button>
+          <ul class="bagel-list" role="listbox" tabindex="-1" aria-activedescendant=""></ul>
+          <select id="blankSelect" name="blank" class="bagel-native" hidden></select>
+        </div>
       </div>
 
-
       <div class="field">
-        <label for="artFile" class="fitline">2: Upload yr art</label>
+        <label for="artFile" class="field-label fitline">2: Upload yr art</label>
         <input id="artFile" type="file" accept="image/*,.svg" hidden>
         <button type="button" id="artFileBtn" class="primary">Choose File</button>
         <div id="artFileName" class="muted fitline">(No file selected)</div>
-
       </div>
 
+      <div class="field">
+        <h1 class="fitline">3: Get it perfect</h1>
+        <ul class="tips">
+          <li>Drag to move</li>
+          <li>Shift + drag to scale (desktop)</li>
+          <li>Pinch with two fingers to zoom (mobile)</li>
+          <li>“Center” to recenter your art</li>
+          <li>“Max it Out” to fit inside print area</li>
+        </ul>
+      </div>
 
+      <!-- BG removal controls -->
+      <div id="bgControls" class="field">
+        <div id="bgSwatches" class="swatches"></div>
 
-   <div class="field">
-  <h1 class="fitline">3: Get it perfect</h1>
-  <ul class="tips">
-    <li>Drag to move</li>
-    <li>Shift + drag to scale (desktop)</li>
-    <li>Pinch with two fingers to zoom (mobile)</li>
-    <li>“Center” to recenter your art</li>
-    <li>“Max it Out” to fit inside print area</li>
-  </ul>
-</div>
+        <label for="bgMode" class="field-label mt-2">Background removal</label>
+        <div class="bagel-select" data-name="bgMode">
+          <button class="bagel-trigger" type="button" aria-haspopup="listbox" aria-expanded="false">
+            <span class="bagel-trigger__label">None</span>
+            <svg class="bagel-trigger__arrow" viewBox="0 0 10 6" aria-hidden="true">
+              <path d="M0 0l5 6 5-6z" fill="currentColor"/>
+            </svg>
+          </button>
+          <ul class="bagel-list" role="listbox" tabindex="-1" aria-activedescendant="">
+            <li role="option" id="opt-bg-0" data-value="none" aria-selected="true">None</li>
+            <li role="option" id="opt-bg-1" data-value="wand">Edge (Wand)</li>
+            <li role="option" id="opt-bg-2" data-value="threshold">Global (Threshold)</li>
+          </ul>
+          <select id="bgMode" name="bgMode" class="bagel-native" hidden>
+            <option value="none" selected>None</option>
+            <option value="wand">Edge (Wand)</option>
+            <option value="threshold">Global (Threshold)</option>
+          </select>
+        </div>
 
-<!-- BG removal controls -->
-<div id="bgControls" class="field">
-  <div id="bgSwatches" style="display:flex;gap:6px;margin-bottom:8px;"></div>
+        <label for="bgTol" class="field-label mt-2">Tolerance</label>
+        <input id="bgTol" type="range" min="5" max="90" value="40" />
 
-  <label for="bgMode">Background removal</label>
-  <select id="bgMode">
-    <option value="none" selected>None</option>
-    <option value="wand">Edge (Wand)</option>
-    <option value="threshold">Global (Threshold)</option>
-  </select>
-
-  <label for="bgTol" style="margin-top:8px;display:block;">Tolerance</label>
-  <input id="bgTol" type="range" min="5" max="90" value="40" />
-
-  <label for="bgFeather" style="margin-top:8px;display:block;">Feather (px)</label>
-  <input id="bgFeather" type="range" min="0" max="3" step="1" value="1" />
-</div>
-
-
-
-
+        <label for="bgFeather" class="field-label mt-2">Feather (px)</label>
+        <input id="bgFeather" type="range" min="0" max="3" step="1" value="1" />
+      </div>
 
       <div class="row">
         <button id="centerBtn">Center</button>
@@ -191,21 +84,20 @@
         <div class="field">
           <label class="fitline">Print dimensions:</label>
           <div id="sizeReadout" class="muted">—</div>
-</div>
-
+        </div>
       </div>
     </aside>
 
     <main class="stage">
       <canvas id="stage" aria-label="Mockup canvas"></canvas>
       <div class="overlay">
-        <!-- Simple visual print area guide (same rect used in code) -->
         <div id="printAreaGuide"></div>
       </div>
     </main>
   </div>
 
-  <script src="./app.js"></script>
+  <!-- Scripts -->
+  <script defer src="./js/bagel-select.js"></script>
+  <script defer src="./app.js"></script>
 </body>
-
 </html>

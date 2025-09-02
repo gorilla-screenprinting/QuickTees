@@ -1,22 +1,31 @@
+// app.js — lean, no auto-fit, no duplicate select code
 (() => {
+  'use strict';
+
   // ===== Elements =====
-  const canvas = document.getElementById('stage');
-  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  const canvas      = document.getElementById('stage');
+  const ctx         = canvas.getContext('2d', { willReadFrequently: true });
   const blankSelect = document.getElementById('blankSelect');
-  const artInput = document.getElementById('artFile');
-  const artBtn = document.getElementById('artFileBtn');
-  const artNameEl = document.getElementById('artFileName');
-  const centerBtn = document.getElementById('centerBtn');
-  const fitBtn = document.getElementById('fitBtn');
+  const artInput    = document.getElementById('artFile');
+  const artBtn      = document.getElementById('artFileBtn');
+  const artNameEl   = document.getElementById('artFileName');
+  const centerBtn   = document.getElementById('centerBtn');
+  const fitBtn      = document.getElementById('fitBtn');
   const sizeReadout = document.getElementById('sizeReadout');
 
-  // ===== Constants (fallbacks if a blank has no box_in/ref) =====
-  const STAGE = { w: 1400, h: 1600 };
-  const MAX_IN = { w: 11.7, h: 16.5 };
-  const PPI_HINT = 80;              // pixels-per-inch hint for fallback
-  const SAFETY = 40;
-  const FIT_PAD = 0;               // e.g. 0.02 for 2% breathing room
-  const CLAMP_EPS_PX = 0.5;         // ~½ px slack to avoid float jitter
+  // BG removal UI
+  const bgSwatches  = document.getElementById('bgSwatches');
+  const bgModeSel   = document.getElementById('bgMode');
+  const bgTolInput  = document.getElementById('bgTol');
+  const bgFeatherIn = document.getElementById('bgFeather');
+
+  // ===== Constants =====
+  const STAGE     = { w: 1400, h: 1600 };
+  const MAX_IN    = { w: 11.7, h: 16.5 };
+  const PPI_HINT  = 80;
+  const SAFETY    = 40;
+  const FIT_PAD   = 0;
+  const CLAMP_EPS_PX = 0.5;
 
   const DESIRED_W = Math.round(MAX_IN.w * PPI_HINT);
   const DESIRED_H = Math.round(MAX_IN.h * PPI_HINT);
@@ -28,41 +37,25 @@
   PRINT.x = Math.round((STAGE.w - PRINT.w) / 2);
   PRINT.y = Math.max(SAFETY, Math.round((STAGE.h - PRINT.h) / 2 - STAGE.h * 0.06));
 
-  // BG removal UI
-  const bgSwatches = document.getElementById('bgSwatches');
-  const bgModeSel = document.getElementById('bgMode');
-  const bgTolInput = document.getElementById('bgTol');
-  const bgFeatherIn = document.getElementById('bgFeather');
-
-  // BG state (defaults to OFF)
-  const BG = {
-    mode: 'none',   // 'none' | 'wand' | 'threshold'
-    tol: 40,        // 5..90
-    feather: 1      // 0..3 px (source-size pixels)
-  };
-
-  // currently selected swatch group (or null)
+  // ===== BG state =====
+  const BG = { mode: 'none', tol: 40, feather: 1 };
   let BG_SELECTED = null;
-
-  // offscreen alpha-applied art (or null to use original)
   let processedArt = null;
 
-
-
-  // ===== State =====
+  // ===== App state =====
   const state = {
-    blank: null,            // Image (shirt)
-    artImg: null,           // Image (uploaded art)
+    blank: null,
+    artImg: null,
     art: { tx: STAGE.w * 0.5, ty: STAGE.h * 0.45, scale: 0.5 },
     dragging: false,
-    dragMode: 'move',       // 'move' | 'scale'
+    dragMode: 'move',
     last: { x: 0, y: 0 },
     dpr: Math.min(window.devicePixelRatio || 1, 1.75),
   };
 
-  let MANIFEST = null;      // loaded once from JSON
-  let PPI_STAGE = null;     // stage px per real inch (per-blank)
-  let BOX_PX = null;        // placement box in stage px (per-blank)
+  let MANIFEST  = null;
+  let PPI_STAGE = null;
+  let BOX_PX    = null;
 
   // ===== rAF scheduler =====
   let needsDraw = false;
@@ -89,9 +82,9 @@
     let targetH = cssW / aspect;
     if (targetH > cssH) { targetH = cssH; targetW = cssH * aspect; }
 
-    canvas.width = Math.round(targetW * state.dpr);
+    canvas.width  = Math.round(targetW * state.dpr);
     canvas.height = Math.round(targetH * state.dpr);
-    canvas.style.width = `${Math.round(targetW)}px`;
+    canvas.style.width  = `${Math.round(targetW)}px`;
     canvas.style.height = `${Math.round(targetH)}px`;
 
     scheduleDraw();
@@ -120,7 +113,7 @@
     const hw = (state.artImg.width * state.art.scale) / 2;
     const hh = (state.artImg.height * state.art.scale) / 2;
     return (x >= state.art.tx - hw && x <= state.art.tx + hw &&
-      y >= state.art.ty - hh && y <= state.art.ty + hh);
+            y >= state.art.ty - hh && y <= state.art.ty + hh);
   }
 
   function maxScaleForPrintArea(imgW, imgH) {
@@ -132,12 +125,10 @@
 
   function enforceConstraints() {
     if (!state.artImg) return;
-    // clamp scale
     const cap = maxScaleForPrintArea(state.artImg.width, state.artImg.height);
     const epsScale = CLAMP_EPS_PX / state.artImg.width;
     state.art.scale = Math.min(state.art.scale, cap - epsScale);
 
-    // clamp position (keep the art's center inside the box)
     const a = area();
     const halfW = (state.artImg.width * state.art.scale) / 2;
     const halfH = (state.artImg.height * state.art.scale) / 2;
@@ -191,18 +182,17 @@
     }
 
     // Art
-if (state.artImg) {
-  enforceConstraints();
+    if (state.artImg) {
+      enforceConstraints();
+      const src = processedArt || state.artImg;
+      const w = src.width  * state.art.scale;
+      const h = src.height * state.art.scale;
 
-  const src = processedArt || state.artImg;     // <-- use masked if present
-  const w = src.width  * state.art.scale;
-  const h = src.height * state.art.scale;
-
-  ctx.save();
-  ctx.translate(state.art.tx, state.art.ty);
-  ctx.drawImage(src, -w / 2, -h / 2, w, h);     // <-- draw src
-  ctx.restore();
-}
+      ctx.save();
+      ctx.translate(state.art.tx, state.art.ty);
+      ctx.drawImage(src, -w / 2, -h / 2, w, h);
+      ctx.restore();
+    }
   }
 
   // ===== Actions =====
@@ -214,8 +204,8 @@ if (state.artImg) {
 
     const a = area();
     const scaledH = state.artImg.height * state.art.scale;
-    state.art.tx = a.x + a.w / 2;     // center horizontally
-    state.art.ty = a.y + scaledH / 2; // top-align
+    state.art.tx = a.x + a.w / 2;
+    state.art.ty = a.y + scaledH / 2;
     enforceConstraints();
     scheduleDraw();
   }
@@ -227,209 +217,192 @@ if (state.artImg) {
     enforceConstraints();
     scheduleDraw();
   }
-// --- Corner sampling & swatches --------------------------------------------
-function sampleCornerColors(img) {
-  const w = img.width, h = img.height, off = 2; // a couple px in from the edges
-  const c = document.createElement('canvas'); c.width = w; c.height = h;
-  const cx = c.getContext('2d', { willReadFrequently:true });
-  cx.drawImage(img, 0, 0);
 
-  const px = (x,y) => {
-    const d = cx.getImageData(x,y,1,1).data;
-    return [d[0], d[1], d[2]];
-  };
-  return [
-    { rgb: px(off, off),         corners:new Set(['tl']) },
-    { rgb: px(w-1-off, off),     corners:new Set(['tr']) },
-    { rgb: px(off, h-1-off),     corners:new Set(['bl']) },
-    { rgb: px(w-1-off, h-1-off), corners:new Set(['br']) }
-  ];
-}
+  const fitArtToMaxArea = () => placeArtTopMaxWidth();
 
-function dedupeColors(samples, thresh=12) {
-  const t2 = thresh*thresh;
-  const groups = [];
-  const d2 = (a,b)=> {
-    const dr=a[0]-b[0], dg=a[1]-b[1], db=a[2]-b[2];
-    return dr*dr + dg*dg + db*db;
-  };
-  for (const s of samples) {
-    let g = groups.find(g => d2(g.rgb, s.rgb) <= t2);
-    if (g) { s.corners.forEach(c=>g.corners.add(c)); }
-    else groups.push({ rgb: s.rgb, corners: new Set([...s.corners]) });
+  // ===== Corner sampling & swatches =====
+  function sampleCornerColors(img) {
+    const w = img.width, h = img.height, off = 2;
+    const c = document.createElement('canvas'); c.width = w; c.height = h;
+    const cx = c.getContext('2d', { willReadFrequently:true });
+    cx.drawImage(img, 0, 0);
+
+    const px = (x,y) => {
+      const d = cx.getImageData(x,y,1,1).data;
+      return [d[0], d[1], d[2]];
+    };
+    return [
+      { rgb: px(off, off),         corners:new Set(['tl']) },
+      { rgb: px(w-1-off, off),     corners:new Set(['tr']) },
+      { rgb: px(off, h-1-off),     corners:new Set(['bl']) },
+      { rgb: px(w-1-off, h-1-off), corners:new Set(['br']) }
+    ];
   }
-  return groups;
-}
 
-function renderSwatches(groups){
-  if (!bgSwatches) return;
-  bgSwatches.innerHTML = '';
-  BG_SELECTED = null;
+  function dedupeColors(samples, thresh=12) {
+    const t2 = thresh*thresh;
+    const groups = [];
+    const d2 = (a,b)=> {
+      const dr=a[0]-b[0], dg=a[1]-b[1], db=a[2]-b[2];
+      return dr*dr + dg*dg + db*db;
+    };
+    for (const s of samples) {
+      let g = groups.find(g => d2(g.rgb, s.rgb) <= t2);
+      if (g) { s.corners.forEach(c=>g.corners.add(c)); }
+      else groups.push({ rgb: s.rgb, corners: new Set([...s.corners]) });
+    }
+    return groups;
+  }
 
-  groups.forEach((g, idx)=>{
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.setAttribute('aria-pressed','false');
-    btn.title = `Corner color ${idx+1}`;
-    btn.style.cssText = `
-      width:22px;height:22px;border-radius:4px;
-      border:2px solid rgba(0,0,0,.25); outline:none; cursor:pointer;
-      background: rgb(${g.rgb[0]},${g.rgb[1]},${g.rgb[2]});
-    `;
-    btn.addEventListener('click', ()=>{
-      // radio behavior: only one selected
-      [...bgSwatches.children].forEach(el=>el.classList.remove('selected'));
-      btn.classList.add('selected');
-      BG_SELECTED = g; // single active group
-      rebuildProcessedArt();
+  function renderSwatches(groups){
+    if (!bgSwatches) return;
+    bgSwatches.innerHTML = '';
+    BG_SELECTED = null;
+
+    groups.forEach((g, idx)=>{
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'swatch';
+      btn.title = `Corner color ${idx+1}`;
+      btn.style.background = `rgb(${g.rgb[0]},${g.rgb[1]},${g.rgb[2]})`;
+      btn.addEventListener('click', ()=>{
+        [...bgSwatches.children].forEach(el=>el.classList.remove('selected'));
+        btn.classList.add('selected');
+        BG_SELECTED = g;
+        rebuildProcessedArt();
+      });
+      bgSwatches.appendChild(btn);
     });
-    bgSwatches.appendChild(btn);
-  });
-}
-
-// --- Mask builders ----------------------------------------------------------
-// apply 0..255 mask to pixels as alpha (min of existing and mask)
-function applyMaskToImage(pixels, mask) {
-  for (let i = 0, j = 0; i < pixels.length; i += 4, j++) {
-    pixels[i+3] = Math.min(pixels[i+3], mask[j]);
   }
-}
 
-// erode 1px to hide halos
-function erodeMask(mask, w, h, iterations=1) {
-  const tmp = new Uint8ClampedArray(mask.length);
-  for (let it=0; it<iterations; it++){
-    tmp.set(mask);
-    for (let y=1; y<h-1; y++){
-      for (let x=1; x<w-1; x++){
-        const i = y*w + x;
-        if (tmp[i] === 0) { mask[i] = 0; continue; }
-        if (
-          tmp[i-1]===0 || tmp[i+1]===0 || tmp[i-w]===0 || tmp[i+w]===0 ||
-          tmp[i-w-1]===0 || tmp[i-w+1]===0 || tmp[i+w-1]===0 || tmp[i+w+1]===0
-        ) mask[i] = 0;
+  // ===== Mask builders =====
+  function applyMaskToImage(pixels, mask) {
+    for (let i = 0, j = 0; i < pixels.length; i += 4, j++) {
+      pixels[i+3] = Math.min(pixels[i+3], mask[j]);
+    }
+  }
+
+  function erodeMask(mask, w, h, iterations=1) {
+    const tmp = new Uint8ClampedArray(mask.length);
+    for (let it=0; it<iterations; it++){
+      tmp.set(mask);
+      for (let y=1; y<h-1; y++){
+        for (let x=1; x<w-1; x++){
+          const i = y*w + x;
+          if (tmp[i] === 0) { mask[i] = 0; continue; }
+          if (
+            tmp[i-1]===0 || tmp[i+1]===0 || tmp[i-w]===0 || tmp[i+w]===0 ||
+            tmp[i-w-1]===0 || tmp[i-w+1]===0 || tmp[i+w-1]===0 || tmp[i+w+1]===0
+          ) mask[i] = 0;
+        }
       }
     }
   }
-}
 
-// tiny box blur feather (radius 0..3)
-function blurMask(mask, w, h, radius=1) {
-  if (radius<=0) return;
-  const tmp = new Float32Array(mask.length);
-  const r = Math.round(radius);
+  function blurMask(mask, w, h, radius=1) {
+    if (radius<=0) return;
+    const tmp = new Float32Array(mask.length);
+    const r = Math.round(radius);
 
-  // horizontal
-  for (let y=0; y<h; y++){
-    let sum=0, row=y*w;
-    for (let x=-r; x<=r; x++) sum += mask[row + Math.max(0, Math.min(w-1, x))];
-    for (let x=0; x<w; x++){
-      tmp[row+x] = sum / (2*r+1);
-      const add=x+r+1, sub=x-r;
-      sum += mask[row + Math.min(w-1, Math.max(0, add))];
-      sum -= mask[row + Math.max(0, sub)];
-    }
-  }
-  // vertical
-  for (let x=0; x<w; x++){
-    let sum=0;
-    for (let y=-r; y<=r; y++) sum += tmp[Math.max(0, Math.min(h-1, y))*w + x];
+    // horizontal
     for (let y=0; y<h; y++){
-      const idx = y*w + x;
-      mask[idx] = Math.round(sum / (2*r+1));
-      const add=y+r+1, sub=y-r;
-      sum += tmp[Math.min(h-1, Math.max(0, add))*w + x];
-      sum -= tmp[Math.max(0, sub)*w + x];
+      let sum=0, row=y*w;
+      for (let x=-r; x<=r; x++) sum += mask[row + Math.max(0, Math.min(w-1, x))];
+      for (let x=0; x<w; x++){
+        tmp[row+x] = sum / (2*r+1);
+        const add=x+r+1, sub=x-r;
+        sum += mask[row + Math.min(w-1, Math.max(0, add))];
+        sum -= mask[row + Math.max(0, sub)];
+      }
+    }
+    // vertical
+    for (let x=0; x<w; x++){
+      let sum=0;
+      for (let y=-r; y<=r; y++) sum += tmp[Math.max(0, Math.min(h-1, y))*w + x];
+      for (let y=0; y<h; y++){
+        const idx = y*w + x;
+        mask[idx] = Math.round(sum / (2*r+1));
+        const add=y+r+1, sub=y-r;
+        sum += tmp[Math.min(h-1, Math.max(0, add))*w + x];
+        sum -= tmp[Math.max(0, sub)*w + x];
+      }
     }
   }
-}
 
-// global threshold vs one target color
-function makeMaskThresholdTarget(pixels, w, h, tol, outMask, targetRGB) {
-  const tol2 = Math.pow((tol/100)*255, 2);
-  const [tr,tg,tb] = targetRGB;
-  for (let i=0, j=0; i<pixels.length; i+=4, j++){
-    const r=pixels[i], g=pixels[i+1], b=pixels[i+2];
-    const d2=(r-tr)**2 + (g-tg)**2 + (b-tb)**2;
-    outMask[j] = (d2 < tol2) ? 0 : 255;
+  function makeMaskThresholdTarget(pixels, w, h, tol, outMask, targetRGB) {
+    const tol2 = Math.pow((tol/100)*255, 2);
+    const [tr,tg,tb] = targetRGB;
+    for (let i=0, j=0; i<pixels.length; i+=4, j++){
+      const r=pixels[i], g=pixels[i+1], b=pixels[i+2];
+      const d2=(r-tr)**2 + (g-tg)**2 + (b-tb)**2;
+      outMask[j] = (d2 < tol2) ? 0 : 255;
+    }
   }
-}
 
-// wand flood-fill from selected corners toward target color
-function makeMaskWandSeeds(pixels, w, h, tol, outMask, target) {
-  outMask.fill(255);
-  const tol2 = Math.pow((tol/100)*255, 2);
-  const visited = new Uint8Array(w*h);
-  const q = [];
-  const idxOf = { tl:0, tr:w-1, bl:(h-1)*w, br:w*h-1 };
-  const [tr,tg,tb] = target.rgb;
+  function makeMaskWandSeeds(pixels, w, h, tol, outMask, target) {
+    outMask.fill(255);
+    const tol2 = Math.pow((tol/100)*255, 2);
+    const visited = new Uint8Array(w*h);
+    const q = [];
+    const idxOf = { tl:0, tr:w-1, bl:(h-1)*w, br:w*h-1 };
+    const [tr,tg,tb] = target.rgb;
 
-  target.corners.forEach(c=>{
-    const idx = idxOf[c];
-    if (idx != null) q.push(idx);
-  });
+    target.corners.forEach(c=>{
+      const idx = idxOf[c];
+      if (idx != null) q.push(idx);
+    });
 
-  while (q.length) {
-    const idx = q.pop();
-    if (visited[idx]) continue;
-    visited[idx] = 1;
+    while (q.length) {
+      const idx = q.pop();
+      if (visited[idx]) continue;
+      visited[idx] = 1;
 
-    const i4 = idx*4;
-    const r=pixels[i4], g=pixels[i4+1], b=pixels[i4+2];
-    const d2=(r-tr)**2 + (g-tg)**2 + (b-tb)**2;
-    if (d2 >= tol2) continue;
+      const i4 = idx*4;
+      const r=pixels[i4], g=pixels[i4+1], b=pixels[i4+2];
+      const d2=(r-tr)**2 + (g-tg)**2 + (b-tb)**2;
+      if (d2 >= tol2) continue;
 
-    outMask[idx] = 0; // background (transparent)
+      outMask[idx] = 0;
 
-    const x = idx % w, y = (idx / w)|0;
-    if (x>0)   q.push(idx-1);
-    if (x<w-1) q.push(idx+1);
-    if (y>0)   q.push(idx-w);
-    if (y<h-1) q.push(idx+w);
+      const x = idx % w, y = (idx / w)|0;
+      if (x>0)   q.push(idx-1);
+      if (x<w-1) q.push(idx+1);
+      if (y>0)   q.push(idx-w);
+      if (y<h-1) q.push(idx+w);
+    }
   }
-}
 
-// build processedArt based on BG settings + selected swatch
-async function rebuildProcessedArt() {
-  processedArt = null;
-  if (!state.artImg || BG.mode === 'none') { scheduleDraw(); return; }
-
-  const src = state.artImg;
-  const w = src.width, h = src.height;
-
-  const c = document.createElement('canvas');
-  c.width = w; c.height = h;
-  const cx = c.getContext('2d', { willReadFrequently:true });
-  cx.drawImage(src, 0, 0);
-
-  const imgData = cx.getImageData(0, 0, w, h);
-  const mask = new Uint8ClampedArray(w*h);
-
-  if (!BG_SELECTED) {
-    // no swatch chosen → do nothing; same as 'none'
+  async function rebuildProcessedArt() {
     processedArt = null;
+    if (!state.artImg || BG.mode === 'none') { scheduleDraw(); return; }
+    if (!BG_SELECTED) { scheduleDraw(); return; }
+
+    const src = state.artImg;
+    const w = src.width, h = src.height;
+
+    const c  = document.createElement('canvas');
+    c.width = w; c.height = h;
+    const cx = c.getContext('2d', { willReadFrequently:true });
+    cx.drawImage(src, 0, 0);
+
+    const imgData = cx.getImageData(0, 0, w, h);
+    const mask = new Uint8ClampedArray(w*h);
+
+    if (BG.mode === 'threshold') {
+      makeMaskThresholdTarget(imgData.data, w, h, BG.tol, mask, BG_SELECTED.rgb);
+    } else {
+      makeMaskWandSeeds(imgData.data, w, h, BG.tol, mask, BG_SELECTED);
+    }
+
+    erodeMask(mask, w, h, 1);
+    if (BG.feather > 0) blurMask(mask, w, h, BG.feather);
+
+    applyMaskToImage(imgData.data, mask);
+    cx.putImageData(imgData, 0, 0);
+    processedArt = c;
+
     scheduleDraw();
-    return;
   }
-
-  if (BG.mode === 'threshold') {
-    makeMaskThresholdTarget(imgData.data, w, h, BG.tol, mask, BG_SELECTED.rgb);
-  } else { // 'wand'
-    makeMaskWandSeeds(imgData.data, w, h, BG.tol, mask, BG_SELECTED);
-  }
-
-  // small cleanup + optional feather
-  erodeMask(mask, w, h, 1);
-  if (BG.feather > 0) blurMask(mask, w, h, BG.feather);
-
-  applyMaskToImage(imgData.data, mask);
-  cx.putImageData(imgData, 0, 0);
-  processedArt = c;
-
-  scheduleDraw();
-}
-
-  const fitArtToMaxArea = () => placeArtTopMaxWidth();
 
   // ===== Manifest / blanks =====
   async function ensureManifest() {
@@ -455,18 +428,15 @@ async function rebuildProcessedArt() {
     img.onload = () => {
       state.blank = img;
 
-      // shirt-to-stage scale
       const bw = img.width, bh = img.height;
       const sBlank = Math.min(STAGE.w / bw, STAGE.h / bh);
 
-      // px-per-inch on stage
       if (meta?.ref?.px && meta?.ref?.in) {
         PPI_STAGE = (meta.ref.px * sBlank) / meta.ref.in;
       } else {
         PPI_STAGE = null;
       }
 
-      // placement box in stage px
       if (PPI_STAGE && meta?.box_in) {
         const b = meta.box_in;
         const wOut = bw * sBlank, hOut = bh * sBlank;
@@ -488,6 +458,11 @@ async function rebuildProcessedArt() {
     img.src = `./assets/shirt_blanks/${filename}`;
   }
 
+  function labelFromFilename(name) {
+    const base = name.replace(/\.[^.]+$/, '');
+    return base.replace(/[_-]+/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+  }
+
   async function loadShirtManifest() {
     try {
       const items = await ensureManifest();
@@ -500,10 +475,7 @@ async function rebuildProcessedArt() {
         opt.textContent = it.label || labelFromFilename(it.file);
         if (idx === 0) opt.selected = true;
         blankSelect.appendChild(opt);
-        
-
       });
-      fitSelect(blankSelect);
 
       if (items.length) await setBlankFromFile(items[0].file);
     } catch (err) {
@@ -513,64 +485,8 @@ async function rebuildProcessedArt() {
       scheduleDraw();
     }
   }
-// --- Fit <select> text to one line (auto-shrink if needed) ---
-function fitSelect(el){
-  if (!el) return;
-  const cs = getComputedStyle(el);
-
-  // available width inside padding (arrow space already reserved in CSS)
-  const padL = parseFloat(cs.paddingLeft)||0;
-  const padR = parseFloat(cs.paddingRight)||0;
-  const avail = el.clientWidth - padL - padR;
-  if (avail <= 0) return;
-
-  // measure selected option with canvas, include style/variant/weight
-  const mctx = fitSelect._ctx || (fitSelect._ctx = document.createElement('canvas').getContext('2d'));
-  const fw = cs.fontWeight || '400';
-  const fs = cs.fontStyle || 'normal';
-  const fv = cs.fontVariant || 'normal';
-  const basePx = parseFloat(cs.fontSize) || 16;
-  mctx.font = `${fs} ${fv} ${fw} ${basePx}px ${cs.fontFamily}`;
-
-  const txt = (el.options[el.selectedIndex] && el.options[el.selectedIndex].text) || '';
-  const textW = mctx.measureText(txt).width;
-
-  const scale = Math.min(1, avail / Math.max(1, textW));
-  const minPx = 12; // don’t go microscopic
-  el.style.fontSize = `${Math.max(minPx, basePx * scale)}px`;
-}
-
-function fitAllSelects(){ document.querySelectorAll('select').forEach(fitSelect); }
-
-// run after layout stabilizes & fonts load
-function fitAllSelectsSoon(){
-  requestAnimationFrame(()=>requestAnimationFrame(fitAllSelects));
-}
-
-// observe size changes (panel width, media queries, etc.)
-const selectRO = new ResizeObserver(entries => {
-  for (const e of entries) fitSelect(e.target);
-});
-window.addEventListener('load', () => {
-  document.querySelectorAll('select').forEach(el => selectRO.observe(el));
-  fitAllSelectsSoon();
-});
-if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitAllSelectsSoon);
-
-// refit when a select’s value changes
-document.addEventListener('change', e => {
-  if (e.target.tagName === 'SELECT') fitSelect(e.target);
-});
-
-
-  function labelFromFilename(name) {
-    const base = name.replace(/\.[^.]+$/, '');
-    return base.replace(/[_-]+/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-  }
 
   // ===== Events =====
-
-  // Upload button triggers hidden input
   if (artBtn && artInput) artBtn.addEventListener('click', () => artInput.click());
 
   if (artInput) {
@@ -579,11 +495,11 @@ document.addEventListener('change', e => {
       if (!f) { if (artNameEl) artNameEl.textContent = '(No file selected)'; return; }
       if (artNameEl) artNameEl.textContent = f.name;
       state.artImg = await loadImageFromFile(f);
-      placeArtTopMaxWidth();             // initial fit & place
+      placeArtTopMaxWidth();
       const sampled = sampleCornerColors(state.artImg);
-      const groups = dedupeColors(sampled, 12); // 12 ≈ gentle de-dupe
-      renderSwatches(groups);     // builds the row of radio-like squares
-      rebuildProcessedArt();      // renders with current BG settings (mode defaults to 'none')
+      const groups = dedupeColors(sampled, 12);
+      renderSwatches(groups);
+      rebuildProcessedArt();
     });
   }
 
@@ -592,9 +508,28 @@ document.addEventListener('change', e => {
   }
 
   if (centerBtn) centerBtn.addEventListener('click', centerArt);
-  if (fitBtn) fitBtn.addEventListener('click', fitArtToMaxArea);
+  if (fitBtn)    fitBtn.addEventListener('click', fitArtToMaxArea);
 
-  // ----- Pointer events (mouse/touch/pen) -----
+  if (bgModeSel) {
+    bgModeSel.addEventListener('change', () => {
+      BG.mode = bgModeSel.value;
+      rebuildProcessedArt();
+    });
+  }
+  if (bgTolInput) {
+    bgTolInput.addEventListener('input', () => {
+      BG.tol = parseInt(bgTolInput.value, 10) || 40;
+      rebuildProcessedArt();
+    });
+  }
+  if (bgFeatherIn) {
+    bgFeatherIn.addEventListener('input', () => {
+      BG.feather = parseInt(bgFeatherIn.value, 10) || 0;
+      rebuildProcessedArt();
+    });
+  }
+
+  // Pointer interactions
   const pointers = new Map();
   let pinchStartDist = null;
   let pinchStartScale = 1;
@@ -640,62 +575,41 @@ document.addEventListener('change', e => {
         state.art.scale *= s;
       }
       state.last = p;
-      enforceConstraints(); 
+      enforceConstraints();
       scheduleDraw();
     } else if (pointers.size === 2) {
       const [a, b] = [...pointers.values()];
       if (pinchStartDist) {
         const factor = dist(a, b) / Math.max(1, pinchStartDist);
         state.art.scale = pinchStartScale * factor;
-        enforceConstraints();  
+        enforceConstraints();
         scheduleDraw();
       }
     }
     e.preventDefault();
   }, { passive: false });
 
-  if (bgModeSel) {
-  bgModeSel.addEventListener('change', () => {
-    BG.mode = bgModeSel.value;
-    rebuildProcessedArt();
-  });
-}
-if (bgTolInput) {
-  bgTolInput.addEventListener('input', () => {
-    BG.tol = parseInt(bgTolInput.value, 10) || 40;
-    rebuildProcessedArt();
-  });
-}
-if (bgFeatherIn) {
-  bgFeatherIn.addEventListener('input', () => {
-    BG.feather = parseInt(bgFeatherIn.value, 10) || 0;
-    rebuildProcessedArt();
-  });
-}
-
   function endPointer(e) {
     pointers.delete(e.pointerId);
     if (pointers.size < 2) pinchStartDist = null;
     if (pointers.size === 0) {
-      state.dragging = false;   // hide guide next frame
+      state.dragging = false;
       scheduleDraw();
     }
   }
   canvas.addEventListener('pointerup', endPointer);
   canvas.addEventListener('pointercancel', endPointer);
-  canvas.addEventListener('pointerout', endPointer);   // also end if pointer leaves canvas
+  canvas.addEventListener('pointerout', endPointer);
 
   // Prevent iOS page scroll while manipulating
   canvas.addEventListener('touchstart', (e) => e.preventDefault(), { passive: false });
-  canvas.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
+  canvas.addEventListener('touchmove',  (e) => e.preventDefault(), { passive: false });
 
   // Resize
   window.addEventListener('resize', setCanvasSize);
   window.addEventListener('orientationchange', setCanvasSize);
 
-  // ===== Boot =====
+  // Boot
   setCanvasSize();
   loadShirtManifest();
-  fitSelect(blankSelect);
-
 })();

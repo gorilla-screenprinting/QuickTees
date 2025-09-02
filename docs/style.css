@@ -6,8 +6,7 @@
   --accent:#3a1c2d;
   --control-h:2.6rem;
   --arrow-w:.9em;
-  --arrow-w: .9em;   
-  --pad-x:   .6em;  
+  --pad-x:.6em;
 }
 
 /* Reset & Base */
@@ -35,9 +34,15 @@ html,body,.panel,.fitline {
 /* Utilities */
 .fitline {
   display:block; width:100%; white-space:nowrap;
-  line-height:1.18; padding-top:.05em; padding-bottom:.1em;
+  line-height:1.18;
+  padding-top:.05em; padding-bottom:.1em;
   overflow:visible;
+  /* simple CSS sizing instead of JS auto-fit */
+  font-size: clamp(18px, 3.8vw, 42px);
 }
+.field-label{ display:block; }
+.mt-2{ margin-top:8px; }
+
 .tips {
   margin:6px 0 0; padding-left:1.2em;
   color:var(--muted); line-height:1.25;
@@ -47,7 +52,7 @@ html,body,.panel,.fitline {
 
 /* Layout */
 .app {
-  display:grid; grid-template-columns:320px 1fr;
+  display:grid; grid-template-columns:clamp(320px, 30vw, 440px) 1fr;
   gap:16px; height:100%; padding:16px;
 }
 .stage {
@@ -77,7 +82,9 @@ html,body,.panel,.fitline {
 button {
   display:block; width:100%; margin:6px 0; padding:.45em 0;
   border:none; border-radius:10px;
-  font-family:inherit; font-size:inherit; line-height:1.2;
+  font-family:inherit; 
+  font-size: clamp(14px, 1.8vw, 16px);
+  line-height:1.2;
   cursor:pointer;
   background:var(--muted); color:var(--panel);
   transition:background .2s,transform .1s;
@@ -88,8 +95,8 @@ button:active:not(:disabled) { transform:scale(.96); background:var(--ink); colo
 button:focus-visible { outline:3px solid var(--ink); outline-offset:2px; }
 button:disabled { opacity:.5; cursor:not-allowed; }
 
-/* stop forcing a tight line-height on selects */
-select,input,textarea {
+/* Inputs */
+input,textarea,select {
   width:100%;
   padding:10px 12px;
   border:none; border-radius:10px;
@@ -97,81 +104,80 @@ select,input,textarea {
   font-family:inherit;
 }
 
+/* (Native select kept just in case; custom select used in UI) */
 select{
-  box-sizing: border-box;
-  width: 100%;
-  /* give the text real vertical room (descenders need bottom space) */
-  line-height: 1.25;                 /* use font metrics, not tight */
-  padding: .45em calc(var(--pad-x) + var(--arrow-w) + .4em) .65em var(--pad-x);
-  min-height: var(--control-h);
-
-  border: none;
-  border-radius: 10px;
-  font: inherit;                     /* stays on Bagel Fat One */
-  color: var(--panel);
-  background-color: var(--bg);
-
-  /* keep system quirks away + custom arrow */
-  appearance: none; -webkit-appearance: none; -moz-appearance: none;
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'><path fill='%23005e5b' d='M0 0l5 6 5-6z'/></svg>");
-  background-repeat: no-repeat;
-  background-position: right var(--pad-x) center;
-  background-size: var(--arrow-w) auto;
-
-  /* let the text render fully; no ellipsis, no clipping */
-  white-space: nowrap;
-  overflow: visible;
-}
-
-/* Safari/WebKit needs a bit more bottom padding to avoid clipping */
-@supports (-webkit-appearance:none){
-  select{ padding-bottom: .72em; }
-}
-
-/* Options use same palette */
-select option{ background: var(--bg); color: var(--panel); }
-
-
-select:focus{
-  outline:3px solid var(--ink);
-  outline-offset:2px;
-}
-
-select option{
-  background:var(--bg);
+  box-sizing:border-box;
+  width:100%;
+  line-height:1.25;
+  padding:.45em calc(var(--pad-x) + var(--arrow-w) + .4em) .65em var(--pad-x);
+  height:3em;
+  border:none; border-radius:10px;
+  font:inherit;
   color:var(--panel);
+  background-color:var(--bg);
+  appearance:none; -webkit-appearance:none; -moz-appearance:none;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'><path fill='%23005e5b' d='M0 0l5 6 5-6z'/></svg>");
+  background-repeat:no-repeat;
+  background-position:right var(--pad-x) center;
+  background-size:var(--arrow-w) auto;
+  white-space:nowrap; overflow:visible;
 }
+@supports (-webkit-appearance:none){
+  select{ padding-bottom:.72em; }
+}
+select option{ background:var(--bg); color:var(--panel); }
 
-/* BG swatches */
-#bgSwatches {
-  display:flex; gap:8px;
-  align-items:center; flex-wrap:wrap;
-}
-#bgSwatches button {
-  width:22px; height:22px;
-  box-sizing:content-box; padding:0; margin:0; line-height:0;
-  display:inline-block;
+/* BG swatches container + buttons */
+.swatches { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+.swatch {
+  width:22px; height:22px; padding:0; margin:0; line-height:0;
   border:2px solid rgba(0,0,0,.25);
   border-radius:4px;
   appearance:none; -webkit-appearance:none;
   cursor:pointer; outline:none;
+  background:transparent;
 }
-#bgSwatches button.selected {
+.swatch.selected {
   outline:2px solid #fff;
   box-shadow:0 0 0 2px rgba(0,0,0,.55) inset;
 }
 
-/* Desktop/tablet: panel grows between 320–440px */
-.app{
-  display:grid;
-  grid-template-columns: clamp(320px, 30vw, 440px) 1fr;
-  gap:16px;
-  height:100%;
-  padding:16px;
+/* BagelSelect (no clipping) */
+.bagel-select{ position:relative; font-family:inherit; }
+
+.bagel-trigger{
+  width:100%;
+  display:flex; align-items:center; justify-content:space-between; gap:.6em;
+  padding:.55em calc(var(--pad-x) + var(--arrow-w) + .3em) .7em var(--pad-x);
+  border:none; border-radius:10px;
+  background:var(--bg); color:var(--panel);
+  font:inherit; line-height:1.18;
+  cursor:pointer;
+  min-height:3em; /* keep height consistent */
 }
+.bagel-trigger:focus-visible{ outline:3px solid var(--ink); outline-offset:2px; }
+.bagel-trigger__arrow{ width:var(--arrow-w); height:auto; color:var(--panel); flex:0 0 auto; }
+
+.bagel-list{
+  position:absolute; inset:auto 0 0 0; transform:translateY(4px);
+  max-height:240px; overflow:auto;
+  background:var(--bg); color:var(--panel);
+  border-radius:10px; box-shadow:0 10px 20px rgba(0,0,0,.18);
+  padding:6px; margin:0; list-style:none; display:none;
+  z-index:10;
+}
+.bagel-select[aria-open="true"] .bagel-list{ display:block; }
+.bagel-list li{
+  padding:.5em .6em; border-radius:8px;
+  line-height:1.18; white-space:nowrap; cursor:pointer;
+}
+.bagel-list li[aria-selected="true"]{ background:var(--ink); color:var(--panel); }
+.bagel-list li[aria-current="true"]{ outline:2px solid var(--accent); }
+
+.bagel-native{ display:none; }
 
 /* Mobile: stack panel over stage */
-@media (max-width: 900px){
-  .app{ grid-template-columns: 1fr; height:100dvh; }
-  .stage{ height: calc(100dvh - 500px); }
+@media (max-width:900px){
+  .app{ grid-template-columns:1fr; height:100dvh; }
+  .stage{ height:calc(100dvh - 500px); }
 }
