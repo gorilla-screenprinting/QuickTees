@@ -1,14 +1,14 @@
 [
 { 
   "file": "Heavy_White_Cotton_T.png",
-  "label": "PREMIUM HEAVY WHITE",
+  "label": "Premium Heavy 100% Cotton WHITE",
   "ref":   { "px": 1080, "in": 35 },
   "box_in": { "x": 11.65, "y": 8, "w": 11.7, "h": 16.5 } 
 },
 
   { 
     "file": "Heavy_Black_Cotton_T.png",   
-    "label": "Premium Heavy Black", 
+    "label": "Premium Heavy 100% Cotton BLACK", 
     "ref":   { "px": 1080, "in": 35 },
     "box_in": { "x": 11.65, "y": 8, "w": 11.7, "h": 16.5 }
   }

@@ -43,6 +43,9 @@ html,body,.panel,.fitline {
 .field-label{ display:block; }
 .mt-2{ margin-top:8px; }
 
+.fitline-wrap { padding-inline: 12px; } /* logical: works LTR/RTL */
+
+
 .tips {
   margin:6px 0 0; padding-left:1.2em;
   color:var(--muted); line-height:1.25;
