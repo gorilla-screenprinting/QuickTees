@@ -1,0 +1,28 @@
+{
+  "name": "quicktees",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gorilla-screenprinting/QuickTees.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/gorilla-screenprinting/QuickTees/issues"
+  },
+  "homepage": "https://github.com/gorilla-screenprinting/QuickTees#readme",
+  "dependencies": {
+    "busboy": "^1.6.0",
+    "googleapis": "^159.0.0"
+  }
+}
