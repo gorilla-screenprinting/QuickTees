@@ -1,6 +1,7 @@
 // netlify/functions/upload-to-drive.js
 const { google } = require("googleapis");
 const Busboy = require("busboy");
+const { Readable } = require("stream");
 
 // Google Drive auth (service account JSON stored in Netlify env var)
 const auth = new google.auth.GoogleAuth({
@@ -30,7 +31,7 @@ exports.handler = async (event) => {
           fileBuffer = Buffer.concat([fileBuffer, data]);
         });
 
-        file.on("end", () => resolve());
+        file.on("end", resolve);
       });
 
       busboy.on("field", (name, val) => {
@@ -50,10 +51,11 @@ exports.handler = async (event) => {
       requestBody: {
         name: fileName,
         mimeType,
+        parents: [process.env.DRIVE_FOLDER_ID], // upload into your folder
       },
       media: {
         mimeType,
-        body: Buffer.from(fileBuffer),
+        body: Readable.from(fileBuffer), // ✅ fixed: stream from buffer
       },
       fields: "id, webViewLink",
     });
