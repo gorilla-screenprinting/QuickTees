@@ -1,55 +1,57 @@
 // netlify/functions/upload-to-drive.js
 const { google } = require("googleapis");
 const Busboy = require("busboy");
+const { Readable } = require("stream");
 
-// ----- Auth (service account JSON in env var GDRIVE_SERVICE_KEY) -----
+// ENV REQUIRED:
+// - GDRIVE_SERVICE_KEY  (stringified JSON of the service account key)
+// - DRIVE_FOLDER_ID     (optional; a folder ID the service account can write to)
+const SERVICE_KEY = process.env.GDRIVE_SERVICE_KEY;
+if (!SERVICE_KEY) {
+  // Fail fast with a clear error if the env var isn't set
+  throw new Error("GDRIVE_SERVICE_KEY env var is missing");
+}
+
 const auth = new google.auth.GoogleAuth({
-  credentials: JSON.parse(process.env.GDRIVE_SERVICE_KEY),
+  credentials: JSON.parse(SERVICE_KEY),
   scopes: ["https://www.googleapis.com/auth/drive.file"],
 });
-const drive = google.drive({ version: "v3", auth });
 
-// Small helper: upload buffer to Drive (optionally inside a folder)
-async function uploadBufferToDrive({ fileName, mimeType, buffer, folderId }) {
-  const params = {
-    requestBody: {
-      name: fileName,
-      mimeType,
-      ...(folderId ? { parents: [folderId] } : {}),
-    },
-    media: {
-      mimeType,
-      body: Buffer.from(buffer),
-    },
-    fields: "id, webViewLink, parents",
-    supportsAllDrives: true,
-  };
-  return await drive.files.create(params);
-}
+const drive = google.drive({ version: "v3", auth });
 
 exports.handler = async (event) => {
   if (event.httpMethod !== "POST") {
-    return { statusCode: 405, body: "Method Not Allowed" };
+    return {
+      statusCode: 405,
+      headers: { "content-type": "text/plain" },
+      body: "Method Not Allowed",
+    };
   }
 
   try {
     // ---------- Parse multipart form ----------
-    const busboy = Busboy({ headers: event.headers });
+    const busboy = Busboy({
+      headers: event.headers,
+    });
+
     const fields = {};
     let fileBuffer = Buffer.alloc(0);
     let fileName = "upload.bin";
     let mimeType = "application/octet-stream";
 
-    const bodyBuf = event.isBase64Encoded
-      ? Buffer.from(event.body || "", "base64")
-      : Buffer.from(event.body || "");
-
     await new Promise((resolve, reject) => {
-      busboy.on("file", (_name, file, info) => {
-        fileName = info?.filename || fileName;
-        mimeType = info?.mimeType || mimeType;
-        file.on("data", (d) => (fileBuffer = Buffer.concat([fileBuffer, d])));
-        file.on("end", () => resolve());
+      busboy.on("file", (fieldname, file, info) => {
+        if (info && info.filename) fileName = info.filename;
+        if (info && (info.mimeType || info.mimetype)) {
+          mimeType = info.mimeType || info.mimetype;
+        }
+
+        file.on("data", (chunk) => {
+          fileBuffer = Buffer.concat([fileBuffer, chunk]);
+        });
+        file.on("end", () => {
+          // noop — finished reading file stream
+        });
       });
 
       busboy.on("field", (name, val) => {
@@ -57,56 +59,50 @@ exports.handler = async (event) => {
       });
 
       busboy.on("error", reject);
+      busboy.on("finish", resolve);
 
-      // IMPORTANT: feed busboy the raw Buffer
-      busboy.end(bodyBuf);
+      // Feed body to busboy
+      const body = event.isBase64Encoded
+        ? Buffer.from(event.body || "", "base64")
+        : Buffer.from(event.body || "", "utf8");
+
+      busboy.end(body);
     });
 
-    if (!fileBuffer.length) {
-      return {
-        statusCode: 400,
-        body: JSON.stringify({ error: "No file received" }),
-      };
-    }
+    // ---------- Build Drive create request ----------
+    const parents = [];
+    const folderEnv = process.env.DRIVE_FOLDER_ID && String(process.env.DRIVE_FOLDER_ID).trim();
+    if (folderEnv) parents.push(folderEnv);
 
-    const folderId = process.env.DRIVE_FOLDER_ID?.trim();
-    let result, savedWhere = "unknown";
-
-    try {
-      // First try: upload into the configured folder (Shared Drive supported)
-      result = await uploadBufferToDrive({
-        fileName,
+    const createReq = {
+      requestBody: {
+        name: fileName,
         mimeType,
-        buffer: fileBuffer,
-        folderId: folderId || undefined,
-      });
-      savedWhere = folderId ? `folder:${folderId}` : "no-folder";
-    } catch (err) {
-      // If folder is not found/accessible (common 404 with Shared Drives), retry WITHOUT parents
-      // so it goes into the service account's My Drive. This proves auth + upload path work.
-      if (folderId) {
-        // Retry outside the folder
-        result = await uploadBufferToDrive({
-          fileName,
-          mimeType,
-          buffer: fileBuffer,
-          folderId: undefined,
-        });
-        savedWhere = "service-account-my-drive";
-      } else {
-        throw err;
-      }
-    }
+        ...(parents.length ? { parents } : {}),
+      },
+      media: {
+        mimeType,
+        // IMPORTANT: googleapis expects a stream here; Buffer alone can trigger
+        // "part.body.pipe is not a function". Wrap Buffer as a Readable stream:
+        body: Readable.from(fileBuffer),
+      },
+      fields: "id, webViewLink, parents",
+      supportsAllDrives: true,
+    };
 
-    const data = result.data || {};
+    const createRes = await drive.files.create(createReq);
+
+    // If we set a parent in a Shared Drive, ensure it's actually used and visible
+    // (not strictly required; added for robustness)
+    const fileId = createRes.data.id;
+
     return {
       statusCode: 200,
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
-        fileId: data.id,
-        webViewLink: data.webViewLink,
-        savedWhere,
-        // echo a couple fields in case you want them in the UI later
+        fileId,
+        webViewLink: createRes.data.webViewLink,
+        savedWhere: parents.length ? `folder:${parents[0]}` : "service-account-my-drive",
         customer_email: fields.customer_email || "",
         order_note: fields.order_note || "",
       }),
@@ -118,6 +114,7 @@ exports.handler = async (event) => {
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
         error: err.message || String(err),
+        stack: (err && err.stack) || undefined,
       }),
     };
   }
