@@ -1,20 +1,31 @@
 // netlify/functions/upload-to-drive.js
 const { google } = require("googleapis");
 const Busboy = require("busboy");
-const { Readable } = require("stream");
 
-const SERVICE_KEY_JSON = process.env.GDRIVE_SERVICE_KEY; // service account JSON (string)
-const DRIVE_FOLDER_ID  = process.env.DRIVE_FOLDER_ID || ""; // optional
-
-if (!SERVICE_KEY_JSON) {
-  throw new Error("GDRIVE_SERVICE_KEY env var is missing");
-}
-
+// ----- Auth (service account JSON in env var GDRIVE_SERVICE_KEY) -----
 const auth = new google.auth.GoogleAuth({
-  credentials: JSON.parse(SERVICE_KEY_JSON),
+  credentials: JSON.parse(process.env.GDRIVE_SERVICE_KEY),
   scopes: ["https://www.googleapis.com/auth/drive.file"],
 });
 const drive = google.drive({ version: "v3", auth });
+
+// Small helper: upload buffer to Drive (optionally inside a folder)
+async function uploadBufferToDrive({ fileName, mimeType, buffer, folderId }) {
+  const params = {
+    requestBody: {
+      name: fileName,
+      mimeType,
+      ...(folderId ? { parents: [folderId] } : {}),
+    },
+    media: {
+      mimeType,
+      body: Buffer.from(buffer),
+    },
+    fields: "id, webViewLink, parents",
+    supportsAllDrives: true,
+  };
+  return await drive.files.create(params);
+}
 
 exports.handler = async (event) => {
   if (event.httpMethod !== "POST") {
@@ -22,72 +33,92 @@ exports.handler = async (event) => {
   }
 
   try {
-    // Parse multipart form
+    // ---------- Parse multipart form ----------
     const busboy = Busboy({ headers: event.headers });
     const fields = {};
     let fileBuffer = Buffer.alloc(0);
     let fileName = "upload.bin";
     let mimeType = "application/octet-stream";
 
+    const bodyBuf = event.isBase64Encoded
+      ? Buffer.from(event.body || "", "base64")
+      : Buffer.from(event.body || "");
+
     await new Promise((resolve, reject) => {
       busboy.on("file", (_name, file, info) => {
         fileName = info?.filename || fileName;
         mimeType = info?.mimeType || mimeType;
-
-        file.on("data", (data) => {
-          fileBuffer = Buffer.concat([fileBuffer, data]);
-        });
-        file.on("end", resolve);
+        file.on("data", (d) => (fileBuffer = Buffer.concat([fileBuffer, d])));
+        file.on("end", () => resolve());
       });
 
-      busboy.on("field", (name, val) => (fields[name] = val));
+      busboy.on("field", (name, val) => {
+        fields[name] = val;
+      });
+
       busboy.on("error", reject);
 
-      // Body may be base64-encoded
-      const body =
-        event.isBase64Encoded && typeof event.body === "string"
-          ? Buffer.from(event.body, "base64")
-          : event.body;
-
-      busboy.end(body);
+      // IMPORTANT: feed busboy the raw Buffer
+      busboy.end(bodyBuf);
     });
 
-    // Optional: preflight check if a folder ID was provided (works for My Drive or Shared Drives)
-    if (DRIVE_FOLDER_ID) {
-      await drive.files.get({
-        fileId: DRIVE_FOLDER_ID,
-        fields: "id",
-        supportsAllDrives: true,
-      });
+    if (!fileBuffer.length) {
+      return {
+        statusCode: 400,
+        body: JSON.stringify({ error: "No file received" }),
+      };
     }
 
-    // Upload
-    const res = await drive.files.create({
-      requestBody: {
-        name: fileName,
-        mimeType,
-        ...(DRIVE_FOLDER_ID ? { parents: [DRIVE_FOLDER_ID] } : {}),
-      },
-      media: {
-        mimeType,
-        body: Readable.from(fileBuffer), // stream to satisfy googleapis multipart
-      },
-      fields: "id, webViewLink",
-      supportsAllDrives: true, // <- IMPORTANT for Shared Drives
-    });
+    const folderId = process.env.DRIVE_FOLDER_ID?.trim();
+    let result, savedWhere = "unknown";
 
+    try {
+      // First try: upload into the configured folder (Shared Drive supported)
+      result = await uploadBufferToDrive({
+        fileName,
+        mimeType,
+        buffer: fileBuffer,
+        folderId: folderId || undefined,
+      });
+      savedWhere = folderId ? `folder:${folderId}` : "no-folder";
+    } catch (err) {
+      // If folder is not found/accessible (common 404 with Shared Drives), retry WITHOUT parents
+      // so it goes into the service account's My Drive. This proves auth + upload path work.
+      if (folderId) {
+        // Retry outside the folder
+        result = await uploadBufferToDrive({
+          fileName,
+          mimeType,
+          buffer: fileBuffer,
+          folderId: undefined,
+        });
+        savedWhere = "service-account-my-drive";
+      } else {
+        throw err;
+      }
+    }
+
+    const data = result.data || {};
     return {
       statusCode: 200,
+      headers: { "content-type": "application/json" },
       body: JSON.stringify({
-        fileId: res.data.id,
-        webViewLink: res.data.webViewLink,
+        fileId: data.id,
+        webViewLink: data.webViewLink,
+        savedWhere,
+        // echo a couple fields in case you want them in the UI later
+        customer_email: fields.customer_email || "",
+        order_note: fields.order_note || "",
       }),
     };
   } catch (err) {
     console.error("Upload error:", err);
     return {
       statusCode: 500,
-      body: JSON.stringify({ error: err.message, stack: err.stack }),
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        error: err.message || String(err),
+      }),
     };
   }
 };
