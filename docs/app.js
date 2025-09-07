@@ -529,7 +529,7 @@ if (artInput) {
         method: 'POST',
         body: form
       });
-      if (!res.ok) throw new Error(\`Upload failed HTTP \${res.status}\`);
+      if (!res.ok) throw new Error(`Upload failed HTTP ${res.status}`);
       const result = await res.json();
 
       window.orderState = window.orderState || {};
@@ -538,11 +538,11 @@ if (artInput) {
 
       if (artNameEl) {
         const safeName = f.name.replace(/[<>&]/g, s => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[s]));
-        artNameEl.innerHTML = \`\${safeName} ✓ uploaded — <a href="\${result.webViewLink}" target="_blank" rel="noopener">Open in Drive</a>\`;
+        artNameEl.innerHTML = `${safeName} ✓ uploaded — <a href="${result.webViewLink}" target="_blank" rel="noopener">Open in Drive</a>`;
       }
     } catch (err) {
       console.error(err);
-      if (artNameEl) artNameEl.textContent = \`Upload failed: \${err.message}\`;
+      if (artNameEl) artNameEl.textContent = `Upload failed: ${err.message}`;
       window.orderState.driveFileId = null;
       window.orderState.driveViewLink = null;
     } finally {
