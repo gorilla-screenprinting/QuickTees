@@ -9,6 +9,88 @@
   <link rel="stylesheet" href="./style.css" />
 </head>
 
+<!-- Order Panel -->
+<style>
+  .qt-order-panel {
+    position: fixed; inset: auto 0 0 auto; right: 0; top: 0; width: 360px;
+    max-width: 90vw; height: 100vh; background: #fff; color:#222;
+    box-shadow: -2px 0 18px rgba(0,0,0,.12); display: flex; flex-direction: column;
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    border-left: 1px solid #eee; z-index: 9999;
+  }
+  .qt-op-header { padding: 14px 16px; border-bottom: 1px solid #eee; font-weight: 600; }
+  .qt-op-body { padding: 12px 16px; overflow: auto; gap: 12px; display: grid; }
+  .qt-op-field { display: grid; gap: 6px; }
+  .qt-op-field label { font-size: 12px; color:#555; }
+  .qt-op-field input, .qt-op-field textarea, .qt-op-field select {
+    padding: 8px 10px; border: 1px solid #ccc; border-radius: 8px; font-size: 14px; width: 100%;
+  }
+  .qt-op-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .qt-op-summary { background: #fafafa; border:1px solid #eee; border-radius: 10px; padding: 10px; font-size: 14px; }
+  .qt-op-summary div { display: flex; justify-content: space-between; padding: 4px 0; }
+  .qt-op-footer { padding: 12px 16px; border-top: 1px solid #eee; display: grid; gap: 8px; }
+  .qt-btn { appearance: none; border: none; padding: 10px 12px; border-radius: 10px; font-weight: 600; cursor: pointer; }
+  .qt-btn-primary { background: #0ea5e9; color: #fff; }
+  .qt-btn-muted { background: #f3f4f6; color: #111; }
+  .qt-note { font-size: 12px; color:#666; }
+</style>
+
+<aside class="qt-order-panel" id="qtOrderPanel">
+  <div class="qt-op-header">Your order</div>
+  <div class="qt-op-body">
+    <!-- Customer -->
+    <div class="qt-op-field">
+      <label for="qtEmail">Email</label>
+      <input id="qtEmail" type="email" placeholder="you@example.com" autocomplete="email">
+    </div>
+    <div class="qt-op-row">
+      <div class="qt-op-field">
+        <label for="qtName">Name</label>
+        <input id="qtName" type="text" placeholder="Full name" autocomplete="name">
+      </div>
+      <div class="qt-op-field">
+        <label for="qtPhone">Phone</label>
+        <input id="qtPhone" type="tel" placeholder="">
+      </div>
+    </div>
+
+    <!-- Line item (single for now; we can expand later) -->
+    <div class="qt-op-row">
+      <div class="qt-op-field">
+        <label for="qtQty">Quantity</label>
+        <input id="qtQty" type="number" min="1" step="1" value="24">
+      </div>
+      <div class="qt-op-field">
+        <label for="qtUnit">Unit price</label>
+        <input id="qtUnit" type="number" min="0" step="0.01" value="5.00">
+      </div>
+    </div>
+
+    <!-- Notes -->
+    <div class="qt-op-field">
+      <label for="qtNotes">Notes (optional)</label>
+      <textarea id="qtNotes" rows="3" placeholder='e.g., "Front chest 10&quot; wide"'></textarea>
+    </div>
+
+    <!-- Summary -->
+    <div class="qt-op-summary" id="qtSummary">
+      <div><span>Subtotal</span><strong id="qtSubtotal">$0.00</strong></div>
+      <div><span>Tax (10%)</span><strong id="qtTax">$0.00</strong></div>
+      <div><span>Shipping</span><strong id="qtShipping">$0.00</strong></div>
+      <hr>
+      <div><span>Total</span><strong id="qtTotal">$0.00</strong></div>
+    </div>
+    <div class="qt-note">This is a simulated checkout—no payment collected.</div>
+  </div>
+
+  <div class="qt-op-footer">
+    <button class="qt-btn qt-btn-muted" id="qtReviewBtn" type="button">Review</button>
+    <button class="qt-btn qt-btn-primary" id="qtPlaceBtn" type="button">Place simulated order</button>
+  </div>
+</aside>
+
+
+
 <body>
   <div class="fitline-wrap">
     <h1 class="fitline"> You should put it on a shirt</h1>
