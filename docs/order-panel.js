@@ -59,16 +59,16 @@
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Idempotency-Key': `QT-\${Date.now()}`
+          'Idempotency-Key': `QT-${Date.now()}`
         },
         body: JSON.stringify(payload)
       });
 
       const text = await res.text();
-      if (!res.ok) throw new Error(text || \`HTTP \${res.status}\`);
+      if (!res.ok) throw new Error(text || `HTTP ${res.status}`);
 
       const data = JSON.parse(text);
-      alert(\`Order placed (simulated)\\n# \${data.orderId}\\nTotal: \${fmt(data.totals.grandTotal)}\`);
+      alert(`Order placed (simulated)\n# ${data.orderId}\nTotal: ${fmt(data.totals.grandTotal)}`);
       console.log('Simulated order:', data);
     } catch (err) {
       console.error(err);
@@ -88,6 +88,6 @@
   if (el.btnPlace) el.btnPlace.addEventListener('click', placeOrder);
   if (el.btnReview) el.btnReview.addEventListener('click', () => {
     const t = computeTotals();
-    alert(\`Review\\nSubtotal: \${fmt(t.subtotal)}\\nTax: \${fmt(t.tax)}\\nTotal: \${fmt(t.grandTotal)}\`);
+    alert(`Review\nSubtotal: ${fmt(t.subtotal)}\nTax: ${fmt(t.tax)}\nTotal: ${fmt(t.grandTotal)}`);
   });
 })();
