@@ -510,29 +510,39 @@ if (artInput) {
     renderSwatches(groups);
     rebuildProcessedArt();
 
-    // 2) Upload full-res file to Drive via Apps Script
+    // 2) Upload full-res file to Drive via Netlify Function (not Apps Script)
     try {
       if (artBtn) artBtn.disabled = true;
       if (artNameEl) artNameEl.textContent = `Uploading: ${f.name}…`;
 
-      // These selectors are optional; if you don't have #email/#note, it's fine.
       const meta = {
         customer_email: document.querySelector('#email')?.value || '',
         order_note: document.querySelector('#note')?.value || ''
       };
 
-      // Function comes from docs/js/upload.js
-      const result = await uploadToDriveViaAppsScript(f, meta);
+      const form = new FormData();
+      form.append('file', f, f.name);
+      form.append('customer_email', meta.customer_email);
+      form.append('order_note', meta.order_note);
 
-      // Save for checkout/webhook later
+      const res = await fetch('/.netlify/functions/upload-to-drive', {
+        method: 'POST',
+        body: form
+      });
+      if (!res.ok) throw new Error(\`Upload failed HTTP \${res.status}\`);
+      const result = await res.json();
+
+      window.orderState = window.orderState || {};
       window.orderState.driveFileId   = result.fileId;
       window.orderState.driveViewLink = result.webViewLink;
 
-      if (artNameEl) artNameEl.textContent = `${f.name} ✓ uploaded`;
+      if (artNameEl) {
+        const safeName = f.name.replace(/[<>&]/g, s => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[s]));
+        artNameEl.innerHTML = \`\${safeName} ✓ uploaded — <a href="\${result.webViewLink}" target="_blank" rel="noopener">Open in Drive</a>\`;
+      }
     } catch (err) {
       console.error(err);
-      if (artNameEl) artNameEl.textContent = `Upload failed: ${err.message}`;
-      // (Optional) clear saved IDs if upload failed
+      if (artNameEl) artNameEl.textContent = \`Upload failed: \${err.message}\`;
       window.orderState.driveFileId = null;
       window.orderState.driveViewLink = null;
     } finally {
