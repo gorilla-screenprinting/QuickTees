@@ -1,6 +1,7 @@
 // netlify/functions/upload-to-drive.js
 const { google } = require("googleapis");
 const Busboy = require("busboy");
+const { Readable } = require("stream"); // <-- add this
 
 exports.handler = async (event) => {
   if (event.httpMethod !== "POST") {
@@ -8,18 +9,12 @@ exports.handler = async (event) => {
   }
 
   try {
-    // 1) Validate env + build auth INSIDE the handler so errors are catchable
     const rawKey = process.env.GDRIVE_SERVICE_KEY;
-    if (!rawKey || !rawKey.trim()) {
-      throw new Error("Missing env var GDRIVE_SERVICE_KEY");
-    }
+    if (!rawKey || !rawKey.trim()) throw new Error("Missing env var GDRIVE_SERVICE_KEY");
 
     let credentials;
-    try {
-      credentials = JSON.parse(rawKey);
-    } catch (e) {
-      throw new Error("GDRIVE_SERVICE_KEY is not valid JSON");
-    }
+    try { credentials = JSON.parse(rawKey); }
+    catch { throw new Error("GDRIVE_SERVICE_KEY is not valid JSON"); }
 
     const auth = new google.auth.GoogleAuth({
       credentials,
@@ -27,12 +22,8 @@ exports.handler = async (event) => {
     });
     const drive = google.drive({ version: "v3", auth });
 
-    // 2) Parse multipart form (Netlify sets body as base64 for multipart)
     const contentType =
-      event.headers["content-type"] ||
-      event.headers["Content-Type"] ||
-      "";
-
+      event.headers["content-type"] || event.headers["Content-Type"] || "";
     if (!contentType.toLowerCase().includes("multipart/form-data")) {
       throw new Error("Request must be multipart/form-data");
     }
@@ -46,43 +37,27 @@ exports.handler = async (event) => {
 
     await new Promise((resolve, reject) => {
       busboy.on("file", (name, file, info) => {
-        // info: { filename, mimeType, encoding }
         fileName = info?.filename || fileName;
         mimeType = info?.mimeType || mimeType;
-
-        file.on("data", (data) => {
-          fileBuffer = Buffer.concat([fileBuffer, data]);
-        });
+        file.on("data", (data) => { fileBuffer = Buffer.concat([fileBuffer, data]); });
       });
-
-      busboy.on("field", (name, val) => {
-        fields[name] = val;
-      });
-
+      busboy.on("field", (name, val) => { fields[name] = val; });
       busboy.once("finish", resolve);
       busboy.once("error", reject);
 
-      // Feed body to busboy
       const body =
         event.isBase64Encoded && event.body
           ? Buffer.from(event.body, "base64")
           : Buffer.from(event.body || "", "utf8");
-
       busboy.end(body);
     });
 
-    if (!fileBuffer.length) {
-      throw new Error("No file received");
-    }
+    if (!fileBuffer.length) throw new Error("No file received");
 
-    // Optional parent folder (share it with the service account)
     const parents = [];
-    const envFolder = process.env.DRIVE_FOLDER_ID;
-    const bodyFolder = fields.folder_id;
-    if (bodyFolder) parents.push(bodyFolder);
-    else if (envFolder) parents.push(envFolder);
+    if (fields.folder_id) parents.push(fields.folder_id);
+    else if (process.env.DRIVE_FOLDER_ID) parents.push(process.env.DRIVE_FOLDER_ID);
 
-    // 3) Upload to Drive
     const res = await drive.files.create({
       requestBody: {
         name: fileName,
@@ -91,7 +66,7 @@ exports.handler = async (event) => {
       },
       media: {
         mimeType,
-        body: Buffer.from(fileBuffer),
+        body: Readable.from(fileBuffer), // <-- use a stream, not Buffer
       },
       fields: "id, webViewLink, name, mimeType, parents",
     });
@@ -108,14 +83,10 @@ exports.handler = async (event) => {
       headers: { "content-type": "application/json" },
     };
   } catch (err) {
-    // Return detailed error so we can see it in the Network tab
     console.error("Upload error:", err);
     return {
       statusCode: 500,
-      body: JSON.stringify({
-        error: err.message,
-        stack: err.stack,
-      }),
+      body: JSON.stringify({ error: err.message, stack: err.stack }),
       headers: { "content-type": "application/json" },
     };
   }
