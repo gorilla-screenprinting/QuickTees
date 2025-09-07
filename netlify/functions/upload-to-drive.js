@@ -1,84 +1,73 @@
-// netlify/functions/upload-to-drive.js
-// Uploads multipart/form-data to Google Drive using a Service Account.
-
 const { google } = require('googleapis');
 const Busboy = require('busboy');
+const { Readable } = require('stream');
 
-function parseMultipart(event) {
-  return new Promise((resolve, reject) => {
-    const ct = event.headers['content-type'] || event.headers['Content-Type'];
-    if (!ct || !ct.startsWith('multipart/')) return reject(new Error('Expected multipart/form-data'));
-
-    const bb = Busboy({ headers: { 'content-type': ct } });
-    const chunks = [];
-    let filename = 'upload.bin';
-    let mimeType = 'application/octet-stream';
-    const fields = {};
-
-    bb.on('file', (_name, file, info) => {
-      filename = info?.filename || filename;
-      mimeType = info?.mimeType || mimeType;
-      file.on('data', d => chunks.push(d));
-    });
-
-    bb.on('field', (name, val) => { fields[name] = val; });
-    bb.on('error', reject);
-    bb.on('close', () => resolve({ buffer: Buffer.concat(chunks), filename, mimeType, fields }));
-
-    const body = event.isBase64Encoded
-      ? Buffer.from(event.body || '', 'base64')
-      : Buffer.from(event.body || '', 'utf8');
-    bb.end(body);
-  });
-}
-
-const CORS = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type',
-};
+// Auth client with service account
+const auth = new google.auth.GoogleAuth({
+  credentials: JSON.parse(process.env.GDRIVE_SERVICE_KEY),
+  scopes: ['https://www.googleapis.com/auth/drive.file'],
+});
+const drive = google.drive({ version: 'v3', auth });
 
 exports.handler = async (event) => {
-  if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers: CORS, body: '' };
-  if (event.httpMethod !== 'POST')   return { statusCode: 405, headers: CORS, body: 'Method Not Allowed' };
+  if (event.httpMethod !== 'POST') {
+    return { statusCode: 405, body: 'Method Not Allowed' };
+  }
 
   try {
-    const { buffer, filename, mimeType, fields } = await parseMultipart(event);
-    if (!buffer?.length) return { statusCode: 400, headers: CORS, body: 'No file data' };
+    const busboy = Busboy({ headers: event.headers });
+    const fields = {};
+    let fileBuffer = Buffer.alloc(0);
+    let fileInfo = {};
 
-    const svcJSON  = process.env.GOOGLE_SERVICE_ACCOUNT;
-    const folderId = process.env.DRIVE_FOLDER_ID;
-    if (!svcJSON || !folderId) return { statusCode: 500, headers: CORS, body: 'Missing env vars' };
+    await new Promise((resolve, reject) => {
+      busboy.on('file', (name, file, info) => {
+        fileInfo = info;
+        file.on('data', (data) => {
+          fileBuffer = Buffer.concat([fileBuffer, data]);
+        });
+      });
 
-    const creds = JSON.parse(svcJSON);
+      busboy.on('field', (name, val) => {
+        fields[name] = val;
+      });
 
-    const auth = new google.auth.JWT({
-      email: creds.client_email,
-      key: creds.private_key,
-      scopes: ['https://www.googleapis.com/auth/drive.file'], // create/manage files it owns
+      busboy.on('finish', resolve);
+      busboy.on('error', reject);
+
+      busboy.end(event.body, event.isBase64Encoded ? 'base64' : 'binary');
     });
 
-    const drive = google.drive({ version: 'v3', auth });
+    if (!fileBuffer.length) {
+      return { statusCode: 400, body: 'No file uploaded' };
+    }
 
-    const uploadRes = await drive.files.create({
-      requestBody: { name: filename, parents: [folderId] },
-      media: { mimeType, body: Buffer.from(buffer) },
+    const fileStream = Readable.from(fileBuffer);
+
+    const driveRes = await drive.files.create({
+      requestBody: {
+        name: fileInfo.filename || 'upload',
+        parents: [process.env.GDRIVE_FOLDER_ID],
+      },
+      media: {
+        mimeType: fileInfo.mimeType || 'application/octet-stream',
+        body: fileStream,
+      },
       fields: 'id, webViewLink',
-      supportsAllDrives: true, // works for Shared Drives too
     });
 
-    const out = {
-      ok: true,
-      fileId: uploadRes.data.id,
-      webViewLink: uploadRes.data.webViewLink,
-      name: filename,
-      size: buffer.length,
-      meta: fields,
+    return {
+      statusCode: 200,
+      body: JSON.stringify({
+        fileId: driveRes.data.id,
+        webViewLink: driveRes.data.webViewLink,
+      }),
     };
-
-    return { statusCode: 200, headers: { ...CORS, 'Content-Type': 'application/json' }, body: JSON.stringify(out) };
   } catch (err) {
     console.error('Upload error:', err);
-    return { statusCode: 500, headers: { ...CORS, 'Content-Type': 'application/json' }, body: JSON.stringify({ ok:false, error: String(err) }) };
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ error: err.message }),
+    };
   }
 };
