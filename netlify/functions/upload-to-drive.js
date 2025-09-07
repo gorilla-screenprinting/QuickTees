@@ -1,7 +1,20 @@
 // netlify/functions/upload-to-drive.js
 const { google } = require("googleapis");
 const Busboy = require("busboy");
-const { Readable } = require("stream"); // <-- add this
+const { Readable } = require("stream");
+
+const SERVICE_KEY_JSON = process.env.GDRIVE_SERVICE_KEY; // service account JSON (string)
+const DRIVE_FOLDER_ID  = process.env.DRIVE_FOLDER_ID || ""; // optional
+
+if (!SERVICE_KEY_JSON) {
+  throw new Error("GDRIVE_SERVICE_KEY env var is missing");
+}
+
+const auth = new google.auth.GoogleAuth({
+  credentials: JSON.parse(SERVICE_KEY_JSON),
+  scopes: ["https://www.googleapis.com/auth/drive.file"],
+});
+const drive = google.drive({ version: "v3", auth });
 
 exports.handler = async (event) => {
   if (event.httpMethod !== "POST") {
@@ -9,66 +22,58 @@ exports.handler = async (event) => {
   }
 
   try {
-    const rawKey = process.env.GDRIVE_SERVICE_KEY;
-    if (!rawKey || !rawKey.trim()) throw new Error("Missing env var GDRIVE_SERVICE_KEY");
-
-    let credentials;
-    try { credentials = JSON.parse(rawKey); }
-    catch { throw new Error("GDRIVE_SERVICE_KEY is not valid JSON"); }
-
-    const auth = new google.auth.GoogleAuth({
-      credentials,
-      scopes: ["https://www.googleapis.com/auth/drive.file"],
-    });
-    const drive = google.drive({ version: "v3", auth });
-
-    const contentType =
-      event.headers["content-type"] || event.headers["Content-Type"] || "";
-    if (!contentType.toLowerCase().includes("multipart/form-data")) {
-      throw new Error("Request must be multipart/form-data");
-    }
-
-    const busboy = Busboy({ headers: { "content-type": contentType } });
-
+    // Parse multipart form
+    const busboy = Busboy({ headers: event.headers });
     const fields = {};
     let fileBuffer = Buffer.alloc(0);
     let fileName = "upload.bin";
     let mimeType = "application/octet-stream";
 
     await new Promise((resolve, reject) => {
-      busboy.on("file", (name, file, info) => {
+      busboy.on("file", (_name, file, info) => {
         fileName = info?.filename || fileName;
         mimeType = info?.mimeType || mimeType;
-        file.on("data", (data) => { fileBuffer = Buffer.concat([fileBuffer, data]); });
-      });
-      busboy.on("field", (name, val) => { fields[name] = val; });
-      busboy.once("finish", resolve);
-      busboy.once("error", reject);
 
+        file.on("data", (data) => {
+          fileBuffer = Buffer.concat([fileBuffer, data]);
+        });
+        file.on("end", resolve);
+      });
+
+      busboy.on("field", (name, val) => (fields[name] = val));
+      busboy.on("error", reject);
+
+      // Body may be base64-encoded
       const body =
-        event.isBase64Encoded && event.body
+        event.isBase64Encoded && typeof event.body === "string"
           ? Buffer.from(event.body, "base64")
-          : Buffer.from(event.body || "", "utf8");
+          : event.body;
+
       busboy.end(body);
     });
 
-    if (!fileBuffer.length) throw new Error("No file received");
+    // Optional: preflight check if a folder ID was provided (works for My Drive or Shared Drives)
+    if (DRIVE_FOLDER_ID) {
+      await drive.files.get({
+        fileId: DRIVE_FOLDER_ID,
+        fields: "id",
+        supportsAllDrives: true,
+      });
+    }
 
-    const parents = [];
-    if (fields.folder_id) parents.push(fields.folder_id);
-    else if (process.env.DRIVE_FOLDER_ID) parents.push(process.env.DRIVE_FOLDER_ID);
-
+    // Upload
     const res = await drive.files.create({
       requestBody: {
         name: fileName,
         mimeType,
-        ...(parents.length ? { parents } : {}),
+        ...(DRIVE_FOLDER_ID ? { parents: [DRIVE_FOLDER_ID] } : {}),
       },
       media: {
         mimeType,
-        body: Readable.from(fileBuffer), // <-- use a stream, not Buffer
+        body: Readable.from(fileBuffer), // stream to satisfy googleapis multipart
       },
-      fields: "id, webViewLink, name, mimeType, parents",
+      fields: "id, webViewLink",
+      supportsAllDrives: true, // <- IMPORTANT for Shared Drives
     });
 
     return {
@@ -76,18 +81,13 @@ exports.handler = async (event) => {
       body: JSON.stringify({
         fileId: res.data.id,
         webViewLink: res.data.webViewLink,
-        name: res.data.name,
-        mimeType: res.data.mimeType,
-        parents: res.data.parents || [],
       }),
-      headers: { "content-type": "application/json" },
     };
   } catch (err) {
     console.error("Upload error:", err);
     return {
       statusCode: 500,
       body: JSON.stringify({ error: err.message, stack: err.stack }),
-      headers: { "content-type": "application/json" },
     };
   }
 };
