@@ -1,12 +1,18 @@
 // netlify/functions/create-order.js
 const { google } = require('googleapis');
 
+// Safe number caster (avoids NaN -> JSON null)
+function n(v) {
+  const x = Number(v);
+  return Number.isFinite(x) ? x : 0;
+}
+
 exports.handler = async function (event) {
   if (event.httpMethod !== 'POST') {
     return { statusCode: 405, body: 'Method Not Allowed' };
   }
 
-  // 1) Parse + validate
+  // Parse + validate
   let body;
   try {
     body = JSON.parse(event.body || '{}');
@@ -18,39 +24,37 @@ exports.handler = async function (event) {
 
   const idemKey = event.headers['idempotency-key'] || '';
 
-  // 2) Auth Sheets
+  // Sheets auth
   const auth = new google.auth.GoogleAuth({
     credentials: JSON.parse(process.env.GDRIVE_SERVICE_KEY),
     scopes: ['https://www.googleapis.com/auth/spreadsheets']
   });
   const sheets = google.sheets({ version: 'v4', auth });
 
-  // 3) If Idempotency-Key present, try to find existing row
+  // If Idempotency-Key present, try to return existing row (no new write)
   if (idemKey) {
-    // Read a reasonable recent window; adjust if you expect huge volume
     const read = await sheets.spreadsheets.values.get({
       spreadsheetId: process.env.ORDERS_SPREADSHEET_ID,
       range: 'Orders!A:P'
     });
     const rows = read.data.values || [];
-    // Skip header row; find a row where column O (index 14) == idemKey
-    const found = rows.find((r, idx) => idx > 0 && (r[14] || '') === idemKey);
+    // Header is row 0; O column is index 14
+    const found = rows.find((r, i) => i > 0 && (r[14] || '') === idemKey);
     if (found) {
-      // Columns: A orderId, K subtotal, L tax, M shipping, N grandTotal, C status, B createdAt
-      const [orderId,, status,, , , , , , , subtotal, tax, shipping, grandTotal] = [
-        found[0], null, found[2], null, null, null, null, null, null, null,
-        Number(found[10] || 0),
-        Number(found[11] || 0),
-        Number(found[12] || 0),
-        Number(found[13] || 0)
-      ];
-      const createdAt = (rows[0] && rows[0][1]) ? found[1] : found[1]; // B
+      const orderId    = found[0] || '';
+      const createdAt  = found[1] || '';
+      const status     = found[2] || 'PENDING_PAYMENT';
+      const subtotal   = n(found[10]);
+      const tax        = n(found[11]);
+      const shipping   = n(found[12]);
+      const grandTotal = n(found[13]);
+
       return {
         statusCode: 200,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           orderId,
-          status: status || 'PENDING_PAYMENT',
+          status,
           totals: { subtotal, tax, shipping, grandTotal },
           createdAt
         })
@@ -58,39 +62,35 @@ exports.handler = async function (event) {
     }
   }
 
-  // 4) Compute totals (new order)
-  let subtotal = 0;
-  for (const it of (body.items || [])) {
-    const qty = Number(it?.qty || 0);
-    const unit = Number(it?.unit || 0);
-    subtotal += qty * unit;
-  }
-  const tax = +(subtotal * 0.10).toFixed(2);
+  // Compute new totals from request
+  const items = Array.isArray(body.items) ? body.items : [];
+  const subtotal = items.reduce((s, it) => s + n(it?.qty) * n(it?.unit), 0);
+  const tax = Math.round(subtotal * 0.10 * 100) / 100;
   const shipping = 0;
-  const grandTotal = +(subtotal + tax + shipping).toFixed(2);
+  const grandTotal = Math.round((subtotal + tax + shipping) * 100) / 100;
 
-  // 5) Build row & append
+  // Build row & append
   const orderId = `QT-${Date.now()}`;
   const createdAt = new Date().toISOString();
   const status = 'PENDING_PAYMENT';
 
   const row = [
-    orderId,                               // A
-    createdAt,                             // B
-    status,                                // C
-    email,                                 // D
-    body?.customer?.name || '',            // E
-    body?.customer?.phone || '',           // F
-    JSON.stringify(body.items || []),      // G
-    body?.art?.fileId || '',               // H
-    body?.art?.webViewLink || '',          // I
-    body?.art?.notes || '',                // J
-    subtotal,                              // K
-    tax,                                   // L
-    shipping,                              // M
-    grandTotal,                            // N
-    idemKey,                               // O (idempotencyKey)
-    body?.meta?.source || 'QuickTees'      // P
+    orderId,                           // A
+    createdAt,                         // B
+    status,                            // C
+    email,                             // D
+    body?.customer?.name || '',        // E
+    body?.customer?.phone || '',       // F
+    JSON.stringify(items),             // G
+    body?.art?.fileId || '',           // H
+    body?.art?.webViewLink || '',      // I
+    body?.art?.notes || '',            // J
+    subtotal,                          // K
+    tax,                               // L
+    shipping,                          // M
+    grandTotal,                        // N
+    idemKey,                           // O
+    body?.meta?.source || 'QuickTees'  // P
   ];
 
   try {
@@ -105,7 +105,7 @@ exports.handler = async function (event) {
     return { statusCode: 500, body: `Sheets error: ${err.message}` };
   }
 
-  // 6) Return new order
+  // Success
   return {
     statusCode: 200,
     headers: { 'Content-Type': 'application/json' },
