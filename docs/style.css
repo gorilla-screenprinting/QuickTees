@@ -98,6 +98,20 @@ button:active:not(:disabled) { transform:scale(.96); background:var(--ink); colo
 button:focus-visible { outline:3px solid var(--ink); outline-offset:2px; }
 button:disabled { opacity:.5; cursor:not-allowed; }
 
+.btn-row{
+  display:flex;
+  gap:8px;
+}
+.btn-row > button{
+  flex:1 1 0;     /* equal widths */
+  width:auto;     /* override your global width:100% */
+  display:flex;   /* keep label centered */
+  justify-content:center;
+}
+
+
+
+
 /* Inputs */
 input,textarea,select {
   width:100%;

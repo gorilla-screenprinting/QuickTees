@@ -18,8 +18,7 @@
   <div class="app">
     <aside class="panel" aria-label="Controls">
       <div class="field">
-        <h1 class="fitline">1: Pick a T-shirt</h1>
-
+        <label for="artFileName" class="field-label fitline">1: Pick a T-shirt</label>
         <!-- BagelSelect: BLANKS (keeps your #blankSelect for app.js) -->
         <div class="bagel-select" data-name="blank">
           <button class="bagel-trigger" type="button" aria-haspopup="listbox" aria-expanded="false">
@@ -54,7 +53,6 @@
       <!-- BG removal controls -->
       <div id="bgControls" class="field">
         <div id="bgSwatches" class="swatches"></div>
-
         <label for="bgMode" class="field-label mt-2">Background removal</label>
         <div class="bagel-select" data-name="bgMode">
           <button class="bagel-trigger" type="button" aria-haspopup="listbox" aria-expanded="false">
@@ -82,14 +80,18 @@
         <input id="bgFeather" type="range" min="0" max="3" step="1" value="1" />
       </div>
 
-      <div class="row">
+      <div class="btn-row">
         <button id="centerBtn">Center</button>
         <button id="fitBtn" class="primary">Max it Out</button>
-        <div class="field">
-          <label class="fitline">Print dimensions:</label>
-          <div id="sizeReadout" class="muted">—</div>
-        </div>
       </div>
+
+
+      <div class="field">
+        <label class="fitline">Print dimensions:</label>
+        <div id="sizeReadout" class="muted">—</div>
+      </div>
+
+
     </aside>
 
     <main class="stage">
@@ -102,6 +104,7 @@
 
   <!-- Scripts -->
   <script defer src="./js/bagel-select.js"></script>
+  <script defer src="./js/upload.js"></script> 
   <script defer src="./js/fitline.js"></script>
   <script defer src="./app.js"></script>
 </body>

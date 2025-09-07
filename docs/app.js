@@ -53,6 +53,10 @@
     dpr: Math.min(window.devicePixelRatio || 1, 1.75),
   };
 
+  // Keep upload + checkout info here
+  window.orderState = window.orderState || {};
+
+
   let MANIFEST  = null;
   let PPI_STAGE = null;
   let BOX_PX    = null;
@@ -489,19 +493,54 @@
   // ===== Events =====
   if (artBtn && artInput) artBtn.addEventListener('click', () => artInput.click());
 
-  if (artInput) {
-    artInput.addEventListener('change', async () => {
-      const f = artInput.files && artInput.files[0];
-      if (!f) { if (artNameEl) artNameEl.textContent = '(No file selected)'; return; }
-      if (artNameEl) artNameEl.textContent = f.name;
-      state.artImg = await loadImageFromFile(f);
-      placeArtTopMaxWidth();
-      const sampled = sampleCornerColors(state.artImg);
-      const groups = dedupeColors(sampled, 12);
-      renderSwatches(groups);
-      rebuildProcessedArt();
-    });
-  }
+if (artInput) {
+  artInput.addEventListener('change', async () => {
+    const f = artInput.files && artInput.files[0];
+    if (!f) {
+      if (artNameEl) artNameEl.textContent = '(No file selected)';
+      return;
+    }
+
+    // 1) Show local preview immediately
+    if (artNameEl) artNameEl.textContent = f.name;
+    state.artImg = await loadImageFromFile(f);
+    placeArtTopMaxWidth();
+    const sampled = sampleCornerColors(state.artImg);
+    const groups = dedupeColors(sampled, 12);
+    renderSwatches(groups);
+    rebuildProcessedArt();
+
+    // 2) Upload full-res file to Drive via Apps Script
+    try {
+      if (artBtn) artBtn.disabled = true;
+      if (artNameEl) artNameEl.textContent = `Uploading: ${f.name}…`;
+
+      // These selectors are optional; if you don't have #email/#note, it's fine.
+      const meta = {
+        customer_email: document.querySelector('#email')?.value || '',
+        order_note: document.querySelector('#note')?.value || ''
+      };
+
+      // Function comes from docs/js/upload.js
+      const result = await uploadToDriveViaAppsScript(f, meta);
+
+      // Save for checkout/webhook later
+      window.orderState.driveFileId   = result.fileId;
+      window.orderState.driveViewLink = result.webViewLink;
+
+      if (artNameEl) artNameEl.textContent = `${f.name} ✓ uploaded`;
+    } catch (err) {
+      console.error(err);
+      if (artNameEl) artNameEl.textContent = `Upload failed: ${err.message}`;
+      // (Optional) clear saved IDs if upload failed
+      window.orderState.driveFileId = null;
+      window.orderState.driveViewLink = null;
+    } finally {
+      if (artBtn) artBtn.disabled = false;
+    }
+  });
+}
+
 
   if (blankSelect) {
     blankSelect.addEventListener('change', (e) => setBlankFromFile(e.target.value || ''));
