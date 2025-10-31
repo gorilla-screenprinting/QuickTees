@@ -9,34 +9,14 @@
   <link rel="stylesheet" href="./style.css" />
 </head>
 
+<body>
 <!-- Order Panel -->
-<style>
-  .qt-order-panel {
-    position: fixed; inset: auto 0 0 auto; right: 0; top: 0; width: 360px;
-    max-width: 90vw; height: 100vh; background: #fff; color:#222;
-    box-shadow: -2px 0 18px rgba(0,0,0,.12); display: flex; flex-direction: column;
-    font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-    border-left: 1px solid #eee; z-index: 9999;
-  }
-  .qt-op-header { padding: 14px 16px; border-bottom: 1px solid #eee; font-weight: 600; }
-  .qt-op-body { padding: 12px 16px; overflow: auto; gap: 12px; display: grid; }
-  .qt-op-field { display: grid; gap: 6px; }
-  .qt-op-field label { font-size: 12px; color:#555; }
-  .qt-op-field input, .qt-op-field textarea, .qt-op-field select {
-    padding: 8px 10px; border: 1px solid #ccc; border-radius: 8px; font-size: 14px; width: 100%;
-  }
-  .qt-op-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-  .qt-op-summary { background: #fafafa; border:1px solid #eee; border-radius: 10px; padding: 10px; font-size: 14px; }
-  .qt-op-summary div { display: flex; justify-content: space-between; padding: 4px 0; }
-  .qt-op-footer { padding: 12px 16px; border-top: 1px solid #eee; display: grid; gap: 8px; }
-  .qt-btn { appearance: none; border: none; padding: 10px 12px; border-radius: 10px; font-weight: 600; cursor: pointer; }
-  .qt-btn-primary { background: #0ea5e9; color: #fff; }
-  .qt-btn-muted { background: #f3f4f6; color: #111; }
-  .qt-note { font-size: 12px; color:#666; }
-</style>
+<aside class="qt-order-panel" id="qtOrderPanel" role="dialog" aria-hidden="true">
+  <div class="qt-op-header">
+    Your order
+    <button id="qtPanelClose" class="qt-op-close" aria-label="Close">✕</button>
+  </div>
 
-<aside class="qt-order-panel" id="qtOrderPanel">
-  <div class="qt-op-header">Your order</div>
   <div class="qt-op-body">
     <!-- Customer -->
     <div class="qt-op-field">
@@ -89,9 +69,11 @@
   </div>
 </aside>
 
+<!-- Always-visible vertical handle -->
+<button id="qtPanelHandle" class="qt-panel-handle" aria-controls="qtOrderPanel" aria-expanded="false">
+  <span class="qt-panel-handle__text">ORDER NOW</span>
+</button>
 
-
-<body>
   <div class="fitline-wrap">
     <h1 class="fitline"> You should put it on a shirt</h1>
   </div>
@@ -184,11 +166,12 @@
     </main>
   </div>
 
-  <!-- Scripts -->
-  <script defer src="./js/bagel-select.js"></script>
-  <script defer src="./js/fitline.js"></script>
-  <script defer src="./app.js"></script>
-  <script defer src="./order-panel.js"></script>
+ <script defer src="./js/bagel-select.js"></script>
+<script defer src="./js/fitline.js"></script>
+<script defer src="./js/app.js"></script>
+<script defer src="./js/order-panel-shell.js"></script>
+<script defer src="./js/order-panel.js"></script>
+
 
 </body>
 
