@@ -4,75 +4,86 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="theme-color" content="#005e5b" />
+
+  <link rel="icon" href="/assets/branding/favicon.ico" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/assets/branding/favicon-32x32.png" />
+  <link rel="icon" type="image/png" sizes="16x16" href="/assets/branding/favicon-16x16.png" />
+  <link rel="apple-touch-icon" href="/assets/branding/apple-touch-icon.png" />
+
   <title>You should put it on a shirt</title>
-  <link href="https://fonts.googleapis.com/css2?family=Bagel+Fat+One&display=swap" rel="stylesheet">
+
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Bagel+Fat+One&display=swap" rel="stylesheet" />
+
   <link rel="stylesheet" href="./style.css" />
 </head>
 
 <body>
-<!-- Order Panel -->
-<aside class="qt-order-panel" id="qtOrderPanel" role="dialog" aria-hidden="true">
-  <div class="qt-op-header">
-    Your order
-    <button id="qtPanelClose" class="qt-op-close" aria-label="Close">✕</button>
-  </div>
-
-  <div class="qt-op-body">
-    <!-- Customer -->
-    <div class="qt-op-field">
-      <label for="qtEmail">Email</label>
-      <input id="qtEmail" type="email" placeholder="you@example.com" autocomplete="email">
+  <!-- Order Panel -->
+  <aside class="qt-order-panel" id="qtOrderPanel" role="dialog" aria-hidden="true">
+    <div class="qt-op-header">
+      Your order
+      <button id="qtPanelClose" class="qt-op-close" aria-label="Close">✕</button>
     </div>
-    <div class="qt-op-row">
+
+    <div class="qt-op-body">
+      <!-- Customer -->
       <div class="qt-op-field">
-        <label for="qtName">Name</label>
-        <input id="qtName" type="text" placeholder="Full name" autocomplete="name">
+        <label for="qtEmail">Email</label>
+        <input id="qtEmail" type="email" placeholder="you@example.com" autocomplete="email">
       </div>
+      <div class="qt-op-row">
+        <div class="qt-op-field">
+          <label for="qtName">Name</label>
+          <input id="qtName" type="text" placeholder="Full name" autocomplete="name">
+        </div>
+        <div class="qt-op-field">
+          <label for="qtPhone">Phone</label>
+          <input id="qtPhone" type="tel" placeholder="">
+        </div>
+      </div>
+
+      <!-- Line item (single for now; we can expand later) -->
+      <div class="qt-op-row">
+        <div class="qt-op-field">
+          <label for="qtQty">Quantity</label>
+          <input id="qtQty" type="number" min="1" step="1" value="24">
+        </div>
+        <div class="qt-op-field">
+          <label for="qtUnit">Unit price</label>
+          <input id="qtUnit" type="number" min="0" step="0.01" value="5.00">
+        </div>
+      </div>
+
+      <!-- Notes -->
       <div class="qt-op-field">
-        <label for="qtPhone">Phone</label>
-        <input id="qtPhone" type="tel" placeholder="">
+        <label for="qtNotes">Notes (optional)</label>
+        <textarea id="qtNotes" rows="3" placeholder='e.g., "Front chest 10&quot; wide"'></textarea>
       </div>
-    </div>
 
-    <!-- Line item (single for now; we can expand later) -->
-    <div class="qt-op-row">
-      <div class="qt-op-field">
-        <label for="qtQty">Quantity</label>
-        <input id="qtQty" type="number" min="1" step="1" value="24">
+      <!-- Summary -->
+      <div class="qt-op-summary" id="qtSummary">
+        <div><span>Subtotal</span><strong id="qtSubtotal">$0.00</strong></div>
+        <div><span>Tax (10%)</span><strong id="qtTax">$0.00</strong></div>
+        <div><span>Shipping</span><strong id="qtShipping">$0.00</strong></div>
+        <hr>
+        <div><span>Total</span><strong id="qtTotal">$0.00</strong></div>
       </div>
-      <div class="qt-op-field">
-        <label for="qtUnit">Unit price</label>
-        <input id="qtUnit" type="number" min="0" step="0.01" value="5.00">
-      </div>
+      <div class="qt-note">This is a simulated checkout—no payment collected.</div>
     </div>
 
-    <!-- Notes -->
-    <div class="qt-op-field">
-      <label for="qtNotes">Notes (optional)</label>
-      <textarea id="qtNotes" rows="3" placeholder='e.g., "Front chest 10&quot; wide"'></textarea>
+    <div class="qt-op-footer">
+      <button class="qt-btn qt-btn-muted" id="qtReviewBtn" type="button">Review</button>
+      <button class="qt-btn qt-btn-primary" id="qtPlaceBtn" type="button">Place simulated order</button>
     </div>
+  </aside>
 
-    <!-- Summary -->
-    <div class="qt-op-summary" id="qtSummary">
-      <div><span>Subtotal</span><strong id="qtSubtotal">$0.00</strong></div>
-      <div><span>Tax (10%)</span><strong id="qtTax">$0.00</strong></div>
-      <div><span>Shipping</span><strong id="qtShipping">$0.00</strong></div>
-      <hr>
-      <div><span>Total</span><strong id="qtTotal">$0.00</strong></div>
-    </div>
-    <div class="qt-note">This is a simulated checkout—no payment collected.</div>
-  </div>
-
-  <div class="qt-op-footer">
-    <button class="qt-btn qt-btn-muted" id="qtReviewBtn" type="button">Review</button>
-    <button class="qt-btn qt-btn-primary" id="qtPlaceBtn" type="button">Place simulated order</button>
-  </div>
-</aside>
-
-<!-- Always-visible vertical handle -->
-<button id="qtPanelHandle" class="qt-panel-handle" aria-controls="qtOrderPanel" aria-expanded="false">
-  <span class="qt-panel-handle__text">ORDER NOW</span>
-</button>
+  <!-- Always-visible vertical handle -->
+  <button id="qtPanelHandle" class="qt-panel-handle" aria-controls="qtOrderPanel" aria-expanded="false">
+    <span class="qt-panel-handle__text">ORDER NOW</span>
+  </button>
 
   <div class="fitline-wrap">
     <h1 class="fitline"> You should put it on a shirt</h1>
@@ -166,11 +177,11 @@
     </main>
   </div>
 
- <script defer src="./js/bagel-select.js"></script>
-<script defer src="./js/fitline.js"></script>
-<script defer src="./js/app.js"></script>
-<script defer src="./js/order-panel-shell.js"></script>
-<script defer src="./js/order-panel.js"></script>
+  <script defer src="./js/bagel-select.js"></script>
+  <script defer src="./js/fitline.js"></script>
+  <script defer src="./js/app.js"></script>
+  <script defer src="./js/order-panel-shell.js"></script>
+  <script defer src="./js/order-panel.js"></script>
 
 
 </body>
