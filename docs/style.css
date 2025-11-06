@@ -180,7 +180,7 @@ button:not(.qt-panel-handle):not(.bagel-trigger):not(.swatch) {
   padding: .45em 0;
   border: none;
   border-radius: 10px;
-  font-size: clamp(14px, 1.8vw, 16px);
+  font-size: clamp(20px, 1.8vw, 16px);
   cursor: pointer;
   background: var(--muted);
   color: var(--panel);
@@ -505,7 +505,7 @@ select option {
 /* Panel handle (fixed tab) */
 .qt-panel-handle {
   position: fixed;
-  top: 40%;
+  top: 70%;
   right: 0;
   transform: translateY(-50%);
   width: 60px;

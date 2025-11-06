@@ -1,4 +1,6 @@
 // js/bagel-select.js
+
+
 (function () {
   function initSelect(root) {
     const btn  = root.querySelector('.bagel-trigger');

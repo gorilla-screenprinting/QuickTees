@@ -3,28 +3,28 @@
   'use strict';
 
   // ===== Elements =====
-  const canvas      = document.getElementById('stage');
-  const ctx         = canvas.getContext('2d', { willReadFrequently: true });
+  const canvas = document.getElementById('stage');
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
   const blankSelect = document.getElementById('blankSelect');
-  const artInput    = document.getElementById('artFile');
-  const artBtn      = document.getElementById('artFileBtn');
-  const artNameEl   = document.getElementById('artFileName');
-  const centerBtn   = document.getElementById('centerBtn');
-  const fitBtn      = document.getElementById('fitBtn');
+  const artInput = document.getElementById('artFile');
+  const artBtn = document.getElementById('artFileBtn');
+  const artNameEl = document.getElementById('artFileName');
+  const centerBtn = document.getElementById('centerBtn');
+  const fitBtn = document.getElementById('fitBtn');
   const sizeReadout = document.getElementById('sizeReadout');
 
   // BG removal UI
-  const bgSwatches  = document.getElementById('bgSwatches');
-  const bgModeSel   = document.getElementById('bgMode');
-  const bgTolInput  = document.getElementById('bgTol');
+  const bgSwatches = document.getElementById('bgSwatches');
+  const bgModeSel = document.getElementById('bgMode');
+  const bgTolInput = document.getElementById('bgTol');
   const bgFeatherIn = document.getElementById('bgFeather');
 
   // ===== Constants =====
-  const STAGE     = { w: 1400, h: 1600 };
-  const MAX_IN    = { w: 11.7, h: 16.5 };
-  const PPI_HINT  = 80;
-  const SAFETY    = 40;
-  const FIT_PAD   = 0;
+  const STAGE = { w: 1400, h: 1600 };
+  const MAX_IN = { w: 11.7, h: 16.5 };
+  const PPI_HINT = 80;
+  const SAFETY = 40;
+  const FIT_PAD = 0;
   const CLAMP_EPS_PX = 0.5;
 
   const DESIRED_W = Math.round(MAX_IN.w * PPI_HINT);
@@ -57,9 +57,9 @@
   window.orderState = window.orderState || {};
 
 
-  let MANIFEST  = null;
+  let MANIFEST = null;
   let PPI_STAGE = null;
-  let BOX_PX    = null;
+  let BOX_PX = null;
 
   // ===== rAF scheduler =====
   let needsDraw = false;
@@ -86,9 +86,9 @@
     let targetH = cssW / aspect;
     if (targetH > cssH) { targetH = cssH; targetW = cssH * aspect; }
 
-    canvas.width  = Math.round(targetW * state.dpr);
+    canvas.width = Math.round(targetW * state.dpr);
     canvas.height = Math.round(targetH * state.dpr);
-    canvas.style.width  = `${Math.round(targetW)}px`;
+    canvas.style.width = `${Math.round(targetW)}px`;
     canvas.style.height = `${Math.round(targetH)}px`;
 
     scheduleDraw();
@@ -117,7 +117,7 @@
     const hw = (state.artImg.width * state.art.scale) / 2;
     const hh = (state.artImg.height * state.art.scale) / 2;
     return (x >= state.art.tx - hw && x <= state.art.tx + hw &&
-            y >= state.art.ty - hh && y <= state.art.ty + hh);
+      y >= state.art.ty - hh && y <= state.art.ty + hh);
   }
 
   function maxScaleForPrintArea(imgW, imgH) {
@@ -189,7 +189,7 @@
     if (state.artImg) {
       enforceConstraints();
       const src = processedArt || state.artImg;
-      const w = src.width  * state.art.scale;
+      const w = src.width * state.art.scale;
       const h = src.height * state.art.scale;
 
       ctx.save();
@@ -228,49 +228,49 @@
   function sampleCornerColors(img) {
     const w = img.width, h = img.height, off = 2;
     const c = document.createElement('canvas'); c.width = w; c.height = h;
-    const cx = c.getContext('2d', { willReadFrequently:true });
+    const cx = c.getContext('2d', { willReadFrequently: true });
     cx.drawImage(img, 0, 0);
 
-    const px = (x,y) => {
-      const d = cx.getImageData(x,y,1,1).data;
+    const px = (x, y) => {
+      const d = cx.getImageData(x, y, 1, 1).data;
       return [d[0], d[1], d[2]];
     };
     return [
-      { rgb: px(off, off),         corners:new Set(['tl']) },
-      { rgb: px(w-1-off, off),     corners:new Set(['tr']) },
-      { rgb: px(off, h-1-off),     corners:new Set(['bl']) },
-      { rgb: px(w-1-off, h-1-off), corners:new Set(['br']) }
+      { rgb: px(off, off), corners: new Set(['tl']) },
+      { rgb: px(w - 1 - off, off), corners: new Set(['tr']) },
+      { rgb: px(off, h - 1 - off), corners: new Set(['bl']) },
+      { rgb: px(w - 1 - off, h - 1 - off), corners: new Set(['br']) }
     ];
   }
 
-  function dedupeColors(samples, thresh=12) {
-    const t2 = thresh*thresh;
+  function dedupeColors(samples, thresh = 12) {
+    const t2 = thresh * thresh;
     const groups = [];
-    const d2 = (a,b)=> {
-      const dr=a[0]-b[0], dg=a[1]-b[1], db=a[2]-b[2];
-      return dr*dr + dg*dg + db*db;
+    const d2 = (a, b) => {
+      const dr = a[0] - b[0], dg = a[1] - b[1], db = a[2] - b[2];
+      return dr * dr + dg * dg + db * db;
     };
     for (const s of samples) {
       let g = groups.find(g => d2(g.rgb, s.rgb) <= t2);
-      if (g) { s.corners.forEach(c=>g.corners.add(c)); }
+      if (g) { s.corners.forEach(c => g.corners.add(c)); }
       else groups.push({ rgb: s.rgb, corners: new Set([...s.corners]) });
     }
     return groups;
   }
 
-  function renderSwatches(groups){
+  function renderSwatches(groups) {
     if (!bgSwatches) return;
     bgSwatches.innerHTML = '';
     BG_SELECTED = null;
 
-    groups.forEach((g, idx)=>{
+    groups.forEach((g, idx) => {
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'swatch';
-      btn.title = `Corner color ${idx+1}`;
+      btn.title = `Corner color ${idx + 1}`;
       btn.style.background = `rgb(${g.rgb[0]},${g.rgb[1]},${g.rgb[2]})`;
-      btn.addEventListener('click', ()=>{
-        [...bgSwatches.children].forEach(el=>el.classList.remove('selected'));
+      btn.addEventListener('click', () => {
+        [...bgSwatches.children].forEach(el => el.classList.remove('selected'));
         btn.classList.add('selected');
         BG_SELECTED = g;
         rebuildProcessedArt();
@@ -282,76 +282,76 @@
   // ===== Mask builders =====
   function applyMaskToImage(pixels, mask) {
     for (let i = 0, j = 0; i < pixels.length; i += 4, j++) {
-      pixels[i+3] = Math.min(pixels[i+3], mask[j]);
+      pixels[i + 3] = Math.min(pixels[i + 3], mask[j]);
     }
   }
 
-  function erodeMask(mask, w, h, iterations=1) {
+  function erodeMask(mask, w, h, iterations = 1) {
     const tmp = new Uint8ClampedArray(mask.length);
-    for (let it=0; it<iterations; it++){
+    for (let it = 0; it < iterations; it++) {
       tmp.set(mask);
-      for (let y=1; y<h-1; y++){
-        for (let x=1; x<w-1; x++){
-          const i = y*w + x;
+      for (let y = 1; y < h - 1; y++) {
+        for (let x = 1; x < w - 1; x++) {
+          const i = y * w + x;
           if (tmp[i] === 0) { mask[i] = 0; continue; }
           if (
-            tmp[i-1]===0 || tmp[i+1]===0 || tmp[i-w]===0 || tmp[i+w]===0 ||
-            tmp[i-w-1]===0 || tmp[i-w+1]===0 || tmp[i+w-1]===0 || tmp[i+w+1]===0
+            tmp[i - 1] === 0 || tmp[i + 1] === 0 || tmp[i - w] === 0 || tmp[i + w] === 0 ||
+            tmp[i - w - 1] === 0 || tmp[i - w + 1] === 0 || tmp[i + w - 1] === 0 || tmp[i + w + 1] === 0
           ) mask[i] = 0;
         }
       }
     }
   }
 
-  function blurMask(mask, w, h, radius=1) {
-    if (radius<=0) return;
+  function blurMask(mask, w, h, radius = 1) {
+    if (radius <= 0) return;
     const tmp = new Float32Array(mask.length);
     const r = Math.round(radius);
 
     // horizontal
-    for (let y=0; y<h; y++){
-      let sum=0, row=y*w;
-      for (let x=-r; x<=r; x++) sum += mask[row + Math.max(0, Math.min(w-1, x))];
-      for (let x=0; x<w; x++){
-        tmp[row+x] = sum / (2*r+1);
-        const add=x+r+1, sub=x-r;
-        sum += mask[row + Math.min(w-1, Math.max(0, add))];
+    for (let y = 0; y < h; y++) {
+      let sum = 0, row = y * w;
+      for (let x = -r; x <= r; x++) sum += mask[row + Math.max(0, Math.min(w - 1, x))];
+      for (let x = 0; x < w; x++) {
+        tmp[row + x] = sum / (2 * r + 1);
+        const add = x + r + 1, sub = x - r;
+        sum += mask[row + Math.min(w - 1, Math.max(0, add))];
         sum -= mask[row + Math.max(0, sub)];
       }
     }
     // vertical
-    for (let x=0; x<w; x++){
-      let sum=0;
-      for (let y=-r; y<=r; y++) sum += tmp[Math.max(0, Math.min(h-1, y))*w + x];
-      for (let y=0; y<h; y++){
-        const idx = y*w + x;
-        mask[idx] = Math.round(sum / (2*r+1));
-        const add=y+r+1, sub=y-r;
-        sum += tmp[Math.min(h-1, Math.max(0, add))*w + x];
-        sum -= tmp[Math.max(0, sub)*w + x];
+    for (let x = 0; x < w; x++) {
+      let sum = 0;
+      for (let y = -r; y <= r; y++) sum += tmp[Math.max(0, Math.min(h - 1, y)) * w + x];
+      for (let y = 0; y < h; y++) {
+        const idx = y * w + x;
+        mask[idx] = Math.round(sum / (2 * r + 1));
+        const add = y + r + 1, sub = y - r;
+        sum += tmp[Math.min(h - 1, Math.max(0, add)) * w + x];
+        sum -= tmp[Math.max(0, sub) * w + x];
       }
     }
   }
 
   function makeMaskThresholdTarget(pixels, w, h, tol, outMask, targetRGB) {
-    const tol2 = Math.pow((tol/100)*255, 2);
-    const [tr,tg,tb] = targetRGB;
-    for (let i=0, j=0; i<pixels.length; i+=4, j++){
-      const r=pixels[i], g=pixels[i+1], b=pixels[i+2];
-      const d2=(r-tr)**2 + (g-tg)**2 + (b-tb)**2;
+    const tol2 = Math.pow((tol / 100) * 255, 2);
+    const [tr, tg, tb] = targetRGB;
+    for (let i = 0, j = 0; i < pixels.length; i += 4, j++) {
+      const r = pixels[i], g = pixels[i + 1], b = pixels[i + 2];
+      const d2 = (r - tr) ** 2 + (g - tg) ** 2 + (b - tb) ** 2;
       outMask[j] = (d2 < tol2) ? 0 : 255;
     }
   }
 
   function makeMaskWandSeeds(pixels, w, h, tol, outMask, target) {
     outMask.fill(255);
-    const tol2 = Math.pow((tol/100)*255, 2);
-    const visited = new Uint8Array(w*h);
+    const tol2 = Math.pow((tol / 100) * 255, 2);
+    const visited = new Uint8Array(w * h);
     const q = [];
-    const idxOf = { tl:0, tr:w-1, bl:(h-1)*w, br:w*h-1 };
-    const [tr,tg,tb] = target.rgb;
+    const idxOf = { tl: 0, tr: w - 1, bl: (h - 1) * w, br: w * h - 1 };
+    const [tr, tg, tb] = target.rgb;
 
-    target.corners.forEach(c=>{
+    target.corners.forEach(c => {
       const idx = idxOf[c];
       if (idx != null) q.push(idx);
     });
@@ -361,18 +361,18 @@
       if (visited[idx]) continue;
       visited[idx] = 1;
 
-      const i4 = idx*4;
-      const r=pixels[i4], g=pixels[i4+1], b=pixels[i4+2];
-      const d2=(r-tr)**2 + (g-tg)**2 + (b-tb)**2;
+      const i4 = idx * 4;
+      const r = pixels[i4], g = pixels[i4 + 1], b = pixels[i4 + 2];
+      const d2 = (r - tr) ** 2 + (g - tg) ** 2 + (b - tb) ** 2;
       if (d2 >= tol2) continue;
 
       outMask[idx] = 0;
 
-      const x = idx % w, y = (idx / w)|0;
-      if (x>0)   q.push(idx-1);
-      if (x<w-1) q.push(idx+1);
-      if (y>0)   q.push(idx-w);
-      if (y<h-1) q.push(idx+w);
+      const x = idx % w, y = (idx / w) | 0;
+      if (x > 0) q.push(idx - 1);
+      if (x < w - 1) q.push(idx + 1);
+      if (y > 0) q.push(idx - w);
+      if (y < h - 1) q.push(idx + w);
     }
   }
 
@@ -384,13 +384,13 @@
     const src = state.artImg;
     const w = src.width, h = src.height;
 
-    const c  = document.createElement('canvas');
+    const c = document.createElement('canvas');
     c.width = w; c.height = h;
-    const cx = c.getContext('2d', { willReadFrequently:true });
+    const cx = c.getContext('2d', { willReadFrequently: true });
     cx.drawImage(src, 0, 0);
 
     const imgData = cx.getImageData(0, 0, w, h);
-    const mask = new Uint8ClampedArray(w*h);
+    const mask = new Uint8ClampedArray(w * h);
 
     if (BG.mode === 'threshold') {
       makeMaskThresholdTarget(imgData.data, w, h, BG.tol, mask, BG_SELECTED.rgb);
@@ -490,66 +490,90 @@
     }
   }
 
+  async function startCheckout({ email = '', fileId = '', orderNote = '' } = {}) {
+    const res = await fetch('/.netlify/functions/create-checkout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, fileId, orderNote })
+    });
+    if (!res.ok) throw new Error('Checkout create failed');
+    const { url } = await res.json();
+    window.location.href = url; // redirect to Stripe Checkout
+  }
+
+
   // ===== Events =====
   if (artBtn && artInput) artBtn.addEventListener('click', () => artInput.click());
 
-if (artInput) {
-  artInput.addEventListener('change', async () => {
-    const f = artInput.files && artInput.files[0];
-    if (!f) {
-      if (artNameEl) artNameEl.textContent = '(No file selected)';
-      return;
-    }
-
-    // 1) Show local preview immediately
-    if (artNameEl) artNameEl.textContent = f.name;
-    state.artImg = await loadImageFromFile(f);
-    placeArtTopMaxWidth();
-    const sampled = sampleCornerColors(state.artImg);
-    const groups = dedupeColors(sampled, 12);
-    renderSwatches(groups);
-    rebuildProcessedArt();
-
-    // 2) Upload full-res file to Drive via Netlify Function (not Apps Script)
-    try {
-      if (artBtn) artBtn.disabled = true;
-      if (artNameEl) artNameEl.textContent = `Uploading: ${f.name}…`;
-
-      const meta = {
-        customer_email: document.querySelector('#email')?.value || '',
-        order_note: document.querySelector('#note')?.value || ''
-      };
-
-      const form = new FormData();
-      form.append('file', f, f.name);
-      form.append('customer_email', meta.customer_email);
-      form.append('order_note', meta.order_note);
-
-      const res = await fetch('/.netlify/functions/upload-to-drive', {
-        method: 'POST',
-        body: form
-      });
-      if (!res.ok) throw new Error(`Upload failed HTTP ${res.status}`);
-      const result = await res.json();
-
-      window.orderState = window.orderState || {};
-      window.orderState.driveFileId   = result.fileId;
-      window.orderState.driveViewLink = result.webViewLink;
-
-      if (artNameEl) {
-        const safeName = f.name.replace(/[<>&]/g, s => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[s]));
-        artNameEl.innerHTML = `${safeName} ✓ uploaded — <a href="${result.webViewLink}" target="_blank" rel="noopener">Open in Drive</a>`;
+  if (artInput) {
+    artInput.addEventListener('change', async () => {
+      const f = artInput.files && artInput.files[0];
+      if (!f) {
+        if (artNameEl) artNameEl.textContent = '(No file selected)';
+        return;
       }
-    } catch (err) {
-      console.error(err);
-      if (artNameEl) artNameEl.textContent = `Upload failed: ${err.message}`;
-      window.orderState.driveFileId = null;
-      window.orderState.driveViewLink = null;
-    } finally {
-      if (artBtn) artBtn.disabled = false;
-    }
-  });
-}
+
+      // 1) Show local preview immediately
+      if (artNameEl) artNameEl.textContent = f.name;
+      state.artImg = await loadImageFromFile(f);
+      placeArtTopMaxWidth();
+      const sampled = sampleCornerColors(state.artImg);
+      const groups = dedupeColors(sampled, 12);
+      renderSwatches(groups);
+      rebuildProcessedArt();
+
+      // 2) Upload full-res file to Drive via Netlify Function (not Apps Script)
+      try {
+        if (artBtn) artBtn.disabled = true;
+        if (artNameEl) artNameEl.textContent = `Uploading: ${f.name}…`;
+
+        const meta = {
+          customer_email: document.querySelector('#email')?.value || '',
+          order_note: document.querySelector('#note')?.value || ''
+        };
+
+        const form = new FormData();
+        form.append('file', f, f.name);
+        form.append('customer_email', meta.customer_email);
+        form.append('order_note', meta.order_note);
+
+        const res = await fetch('/.netlify/functions/upload-to-drive', {
+          method: 'POST',
+          body: form
+        });
+        if (!res.ok) throw new Error(`Upload failed HTTP ${res.status}`);
+        const result = await res.json();
+
+        // Normalize API response and store for checkout
+        const fileId = result.id || result.fileId;          // supports either shape
+        window.orderState.fileId = fileId;                  // <- use .fileId (not .driveFileId)
+        window.orderState.orderNote = meta.order_note || ''; // keep the note for Stripe
+
+        const email = document.querySelector('#email')?.value
+          || prompt('Email for Stripe receipt (optional):')
+          || '';
+
+        startCheckout({ email, fileId, orderNote: window.orderState.orderNote });
+
+
+
+        if (artNameEl) {
+          const safeName = f.name.replace(/[<>&]/g, s => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[s]));
+          artNameEl.innerHTML = `${safeName} ✓ uploaded — <a href="${result.webViewLink}" target="_blank" rel="noopener">Open in Drive</a>`;
+        }
+      } catch (err) {
+        console.error(err);
+        if (artNameEl) artNameEl.textContent = `Upload failed: ${err.message}`;
+        // Clear the same fields we set on success
+        window.orderState.fileId = null;
+        window.orderState.orderNote = '';
+        window.orderState.driveViewLink = null; // keep if you show the link elsewhere
+      } finally {
+
+        if (artBtn) artBtn.disabled = false;
+      }
+    });
+  }
 
 
   if (blankSelect) {
@@ -557,7 +581,7 @@ if (artInput) {
   }
 
   if (centerBtn) centerBtn.addEventListener('click', centerArt);
-  if (fitBtn)    fitBtn.addEventListener('click', fitArtToMaxArea);
+  if (fitBtn) fitBtn.addEventListener('click', fitArtToMaxArea);
 
   if (bgModeSel) {
     bgModeSel.addEventListener('change', () => {
@@ -652,7 +676,7 @@ if (artInput) {
 
   // Prevent iOS page scroll while manipulating
   canvas.addEventListener('touchstart', (e) => e.preventDefault(), { passive: false });
-  canvas.addEventListener('touchmove',  (e) => e.preventDefault(), { passive: false });
+  canvas.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
 
   // Resize
   window.addEventListener('resize', setCanvasSize);
