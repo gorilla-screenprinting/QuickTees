@@ -87,14 +87,14 @@
 
   <div class="fitline-wrap">
     <h1 class="fitline">
-      <span>Put it on a shirt.</span>
+      <span>Put it on a shirt!</span>
     </h1>
   </div>
 
   <div class="app">
     <aside class="panel" aria-label="Controls">
       <div class="field">
-        <label for="artFileName" class="field-label fitline">1: Pick a shirt blank</label>
+        <label for="blankSelect" class="field-label fitline">1: Pick a shirt blank</label>
         <!-- BagelSelect: BLANKS (keeps your #blankSelect for app.js) -->
         <div class="bagel-select" data-name="blank">
           <button class="bagel-trigger" type="button" aria-haspopup="listbox" aria-expanded="false">
@@ -108,12 +108,11 @@
         </div>
       </div>
 
-      <div class="field">
-        <label for="artFile" class="field-label fitline">2: Upload yr art</label>
-        <input id="artFile" type="file" accept="image/*,.svg" hidden>
-        <button type="button" id="artFileBtn" class="primary">Choose File</button>
-        <div id="artFileName" class="muted fitline">(No file selected)</div>
-      </div>
+      <div class="field-label fitline">2: Upload yr art</div>
+      <input id="artFile" type="file" accept="image/*,.svg" hidden>
+      <button type="button" id="artFileBtn" class="primary">Choose File</button>
+      <div id="artFileName" class="muted fitline">(No file selected)</div>
+
 
       <div class="field">
         <h1 class="fitline">3: Get it perfect</h1>
