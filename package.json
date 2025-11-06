@@ -23,6 +23,7 @@
   "homepage": "https://github.com/gorilla-screenprinting/QuickTees#readme",
   "dependencies": {
     "busboy": "^1.6.0",
-    "googleapis": "^159.0.0"
+    "googleapis": "^159.0.0",
+    "stripe": "^16"
   }
 }
