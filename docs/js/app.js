@@ -528,9 +528,10 @@
         if (artNameEl) artNameEl.textContent = `Uploading: ${f.name}…`;
 
         const meta = {
-          customer_email: document.querySelector('#email')?.value || '',
-          order_note: document.querySelector('#note')?.value || ''
+          customer_email: document.querySelector('#qtEmail')?.value || '',
+          order_note: document.querySelector('#qtNotes')?.value || ''
         };
+
 
         const form = new FormData();
         form.append('file', f, f.name);
@@ -549,12 +550,8 @@
         window.orderState.fileId = fileId;                  // <- use .fileId (not .driveFileId)
         window.orderState.orderNote = meta.order_note || ''; // keep the note for Stripe
 
-        const email = document.querySelector('#email')?.value
-          || prompt('Email for Stripe receipt (optional):')
-          || '';
-
-        startCheckout({ email, fileId, orderNote: window.orderState.orderNote });
-
+        // Store for checkout; existing order panel button will trigger payment
+        window.orderState.pendingEmail = document.querySelector('#qtEmail')?.value || '';
 
 
         if (artNameEl) {
@@ -601,6 +598,24 @@
       rebuildProcessedArt();
     });
   }
+
+  // Hook the existing order-panel button to start Stripe checkout
+  const qtPlaceBtn = document.getElementById('qtPlaceBtn');
+  if (qtPlaceBtn) {
+    qtPlaceBtn.addEventListener('click', () => {
+      const email = (document.querySelector('#qtEmail')?.value || window.orderState.pendingEmail || '').trim();
+      const fileId = window.orderState.fileId || '';
+      const orderNote = window.orderState.orderNote || '';
+      if (!fileId) {
+        alert('Upload your art first, then try again.');
+        return;
+      }
+      startCheckout({ email, fileId, orderNote });
+    });
+  }
+
+
+
 
   // Pointer interactions
   const pointers = new Map();
