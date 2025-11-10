@@ -55,7 +55,7 @@
 
   // Keep upload + checkout info here
   window.orderState = window.orderState || {};
-  window.orderState.readoutIn = s || null;
+
 
   let MANIFEST = null;
   let PPI_STAGE = null;
@@ -154,6 +154,9 @@
   function updateReadout() {
     if (!sizeReadout) return;
     const s = getArtSizeInches();
+    window.orderState = window.orderState || {};
+    window.orderState.readoutIn = s || null;
+
     sizeReadout.textContent = s ? `${s.w_in.toFixed(2)}" W × ${s.h_in.toFixed(2)}" H` : '—';
     if (s && typeof window.deriveDtfTier === 'function') {
       const tier = window.deriveDtfTier(s); // { tierIn, key, tooLarge }
