@@ -3,13 +3,7 @@ const Stripe = require('stripe');
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
 const { GARMENT_PRICE_IDS, DTF_PRICE_IDS } = require('./config/prices.js');
-const fs = require('fs');
-const path = require('path');
-
-// Load count-based shipping table (e.g., 1–4, 5–10, 11–18, 19–24, 25–35)
-const SHIPPING_TABLE = JSON.parse(
-  fs.readFileSync(path.join(__dirname, 'config', 'shipping.json'), 'utf8')
-);
+const SHIPPING_TABLE = require('./config/shipping.json');
 
 // ---- helpers ----
 function sumSizeRun(sizeRun = {}) {

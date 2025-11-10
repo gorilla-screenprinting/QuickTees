@@ -13,3 +13,7 @@
   to   = "https://designer.gorillaprintshop.com/:splat"
   status = 301
   force = true
+
+[functions]
+  node_bundler = "esbuild"
+  included_files = ["netlify/functions/config/shipping.json"]

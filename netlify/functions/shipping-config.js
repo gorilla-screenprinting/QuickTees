@@ -4,12 +4,11 @@ const path = require('path');
 
 exports.handler = async () => {
   try {
-    const p = path.join(__dirname, 'config', 'shipping.json');
-    const json = fs.readFileSync(p, 'utf8');
+    const cfg = require('./config/shipping.json');
     return {
       statusCode: 200,
-      headers: { 'Content-Type': 'application/json' },
-      body: json
+      headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
+      body: JSON.stringify(cfg)
     };
   } catch (err) {
     console.error('shipping-config failed:', err);
