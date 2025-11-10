@@ -21,6 +21,7 @@
 </head>
 
 <body>
+
   <!-- Order Panel -->
   <aside class="qt-order-panel" id="qtOrderPanel" role="dialog" aria-hidden="true">
     <div class="qt-op-header">
@@ -45,7 +46,7 @@
         </div>
       </div>
 
-      <!-- Line item (single for now; we can expand later) -->
+      <!-- Line item (single for now; grid later) -->
       <div class="qt-op-row">
         <div class="qt-op-field">
           <label for="qtQty">Quantity</label>
@@ -54,6 +55,16 @@
         <div class="qt-op-field">
           <label for="qtUnit">Unit price</label>
           <input id="qtUnit" type="number" min="0" step="0.01" value="5.00">
+        </div>
+      </div>
+
+      <!-- Placement -->
+      <div class="qt-op-field">
+        <label>Placement</label>
+        <div class="qt-op-row" role="radiogroup" aria-label="Placement">
+          <label><input type="radio" name="qtPlacement" id="qtPlacementFront" value="front" checked> Front</label>
+          <label style="margin-left: 1rem;"><input type="radio" name="qtPlacement" id="qtPlacementBack" value="back">
+            Back</label>
         </div>
       </div>
 
@@ -66,19 +77,22 @@
       <!-- Summary -->
       <div class="qt-op-summary" id="qtSummary">
         <div><span>Subtotal</span><strong id="qtSubtotal">$0.00</strong></div>
-        <div><span>Tax (10%)</span><strong id="qtTax">$0.00</strong></div>
+        <div><span>Tax</span><strong id="qtTax">Calculated at checkout</strong></div>
         <div><span>Shipping</span><strong id="qtShipping">$0.00</strong></div>
         <hr>
         <div><span>Total</span><strong id="qtTotal">$0.00</strong></div>
       </div>
-      <div class="qt-note">This is a simulated checkout—no payment collected.</div>
+      <div class="qt-note">
+        UPS Ground only. Orders of <strong>36+</strong> are screenprint-only—contact us for a quote.
+      </div>
     </div>
 
     <div class="qt-op-footer">
       <button class="qt-btn qt-btn-muted" id="qtReviewBtn" type="button">Review</button>
-      <button class="qt-btn qt-btn-primary" id="qtPlaceBtn" type="button">Place simulated order</button>
+      <button class="qt-btn qt-btn-primary" id="qtPlaceBtn" type="button">Checkout</button>
     </div>
   </aside>
+
 
   <!-- Always-visible vertical handle -->
   <button id="qtPanelHandle" class="qt-panel-handle" aria-controls="qtOrderPanel" aria-expanded="false">
@@ -177,6 +191,7 @@
     </main>
   </div>
 
+  <script defer src="./config/tiers.js"></script>
   <script defer src="./js/bagel-select.js"></script>
   <script defer src="./js/fitline.js"></script>
   <script defer src="./js/app.js"></script>

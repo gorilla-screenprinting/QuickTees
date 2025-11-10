@@ -55,7 +55,7 @@
 
   // Keep upload + checkout info here
   window.orderState = window.orderState || {};
-
+  window.orderState.readoutIn = s || null;
 
   let MANIFEST = null;
   let PPI_STAGE = null;
@@ -155,6 +155,22 @@
     if (!sizeReadout) return;
     const s = getArtSizeInches();
     sizeReadout.textContent = s ? `${s.w_in.toFixed(2)}" W × ${s.h_in.toFixed(2)}" H` : '—';
+    if (s && typeof window.deriveDtfTier === 'function') {
+      const tier = window.deriveDtfTier(s); // { tierIn, key, tooLarge }
+      window.orderState = window.orderState || {};
+      window.orderState.currentTier = tier;
+    }
+
+    const placeBtn = document.getElementById('qtPlaceBtn');
+    if (window.orderState?.currentTier?.tooLarge) {
+      sizeReadout.textContent = `Too large for DTF — max 16"`;
+      sizeReadout.classList.add('error'); // optional; style in CSS if you want
+      if (placeBtn) placeBtn.disabled = true;
+    } else {
+      sizeReadout.classList.remove('error');
+      if (placeBtn) placeBtn.disabled = false;
+    }
+
   }
 
   // ===== Rendering =====

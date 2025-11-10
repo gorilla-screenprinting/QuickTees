@@ -1,0 +1,270 @@
+Cart v1 — Garment + Decoration (Blended Size Pricing)
+
+Date: 2025-11-06 · Owner: QuickTees
+
+1) Goals (why)
+
+Let customers add multiple designs in one checkout.
+
+Keep one blended garment price (no per-size surcharge).
+
+Price decoration by art size × quantity (from on-canvas size readout).
+
+Keep Stripe simple; keep Sheets auditable.
+
+2) Core concepts (what)
+
+Design: one uploaded art file + placement + readout size (inches).
+
+Garment SKU: blank type/color/print area (e.g., Heavy Tee / Black / Front).
+
+Line item = Design × Garment SKU with a size grid (XS–3X).
+
+Decoration tier: bucketed from getArtSizeInches() (XS/S/M/L/XL… exact breakpoints TBD).
+
+3) UX (order panel changes)
+
+Cart contains Design blocks. Each block shows:
+
+Garment selector (SKU), art thumbnail, placement, size readout (from canvas).
+
+Size grid inputs: XS, S, M, L, XL, 2X, 3X.
+
+Line notes (optional).
+
+Subtotals: Garment subtotal + Decoration subtotal + Line total.
+
+Cart footer: shipping, tax, order total, Checkout button.
+
+“Add another design” duplicates the block; each block requires (or reuses) a fileId.
+
+4) Pricing model (how)
+
+Garment: blended unit price × (sum of sizes).
+
+Decoration: decoration_rate_for_tier × totalQty
+
+Tiers derived from readout (e.g., XS ≤4×4, S ≤6×6, M ≤10×10, L ≤12×12, XL ≤14×16).
+
+Exact tier table to live in app.js constants (later).
+
+5) Stripe mapping (checkout payload)
+
+For each design block send two Stripe line items:
+
+Garment — price: <PRICE_ID for garment SKU>, quantity: totalQty.
+
+Decoration — dynamic price_data with unit_amount = decoration_subtotal_cents, quantity: 1, product_data.name = "Decoration — <tier> — <Design Label>".
+
+Session metadata (JSON string):
+
+{
+  "items": [
+    {
+      "designLabel": "Design A",
+      "fileId": "drive-file-id",
+      "garmentSKU": "heavy-tee/black/front",
+      "sizes": {"XS":0,"S":2,"M":4,"L":5,"XL":0,"2X":0,"3X":0},
+      "tier": "M",
+      "readoutIn": {"w":10.00,"h":8.50}
+    }
+  ],
+  "customer": {"name":"…","phone":"…"}
+}
+
+6) Webhook → Sheets (data write)
+
+Parent: Orders row (one per session)
+
+orderId, createdAt, status=PAID, email, customer name/phone, subtotal, tax, shipping, total, session.id, source.
+
+Child: OrderLines row(s) (one per design block)
+
+orderId (FK), designLabel, fileId, garmentSKU, sizesJson, tier, readout (w×h), garment_unit, garment_qty, garment_subtotal, decoration_subtotal, line_total.
+
+If you prefer one sheet only, keep sizesJson in a column and include per-line totals; parent totals still in the parent row.
+
+7) Validation (before Checkout)
+
+Each design block must have:
+
+fileId, garmentSKU, totalQty ≥ 1.
+
+readoutIn present (or “Unknown” tier fallback).
+
+Email required; name/phone optional for now.
+
+If tier cannot be derived, default to M and flag in metadata ("tierSource":"fallback").
+
+8) Edge cases
+
+Reusing the same art for multiple garments: allowed (each block has its own tier/qty).
+
+Zeroed size rows: allowed but must sum to ≥1 or block is invalid.
+
+Decoration-only (no garment): not allowed in v1.
+
+Shipping: flat rate for now (panel footer); can move to Stripe later.
+
+9) Refunds & reporting (operational notes)
+
+Garment and Decoration are separate Stripe lines per design → enables targeted refunds.
+
+Size distribution lives in metadata + Sheets (human-readable audit).
+
+Session id remains idempotency key for the parent row.
+
+10) Testing checklist
+
+Add two designs, different size grids → Checkout shows 4 lines (2× garment, 2× decoration).
+
+Stripe Dashboard event: checkout.session.completed → Netlify logs show write success.
+
+Sheets: one Orders row + two OrderLines rows with correct sizesJson and tier math.
+
+Refund a single decoration line in Stripe → confirm accounting expectation.
+
+Open questions to confirm
+
+Tier table: final breakpoints + per-tier rates? (I’ll stub constants next once you confirm.)
+
+Garment SKUs: list of initial blanks/colors/print-areas and their blended unit prices.
+
+Sheet shape: parent/child two-sheet approach OK, or keep one sheet for now?
+
+Shipping & tax: flat shipping and static tax for v1?
+
+If this looks right, say the word and I’ll draft:
+
+The constants block (tiers, SKUs, rates)
+
+The minimal UI deltas (size grid layout + per-line math)
+
+The Create-Checkout payload shape (no wiring changes beyond that)
+
+
+
+
+
+
+
+
+
+
+
+
+1) SKUs → two buckets
+
+Garments (blended price):
+
+tee-heavy-black · Premium Black Tee · 25
+
+tee-heavy-white · Premium White Tee · 25
+
+tee-light-black · Value Black Tee · 15
+
+tee-light-white · Value White Tee · 15
+
+Decoration (by size & placement):
+
+dtf-4-front/back · 5
+
+dtf-8-front/back · 7.5
+
+dtf-12-front/back · 10
+
+dtf-16-front/back · 15
+
+Cart rule: Each Design block produces two Stripe lines:
+
+Garment line: the chosen tee SKU × totalQty (sum of XS–3X).
+
+Decoration line: choose the smallest decoration SKU that fits the readout (ceil to 4, 8, 12, 16; use Front/Back), × totalQty.
+
+We’ll still show the size grid in the panel + store it in metadata/Sheet; price is not per-size.
+
+2) Tax & Shipping in Stripe (reality check)
+
+Stripe Tax: Yes—Stripe can calculate tax automatically at Checkout if you enable Stripe Tax and assign tax categories to your Products (e.g., apparel vs. printing service). You’ll confirm whether amounts are tax-exclusive or inclusive for your prices.
+
+Shipping: Checkout supports shipping rates you define (flat, tiered by destination). Stripe does not pull live UPS negotiated rates in Checkout out-of-the-box. If you want true UPS rate shopping, that’s a custom server step (or a fulfillment app). For v1, pick simple Stripe shipping rates (e.g., “Local pickup: $0”, “UPS Ground: $X”, “Expedited: $Y”).
+
+3) Sheet shape
+
+✅ Two tabs:
+
+Orders (parent, one row per paid session)
+
+OrderLines (child, one row per design: garment SKU, sizesJson, decoration SKU, readout, line totals)
+
+4) Step-3 — Stripe catalog prep (explicit checklist)
+
+Do these in Stripe (test mode first):
+
+A. Create Products & Prices
+
+Make a Product for each Garment SKU and one Price each (USD).
+
+Make a Product for each Decoration SKU and one Price each (USD).
+
+Keep prices tax-exclusive unless you have a reason to roll tax into the sticker price.
+
+Copy each Price ID; we’ll paste into the app constants.
+
+B. Assign tax categories (Stripe Tax)
+
+Turn on Stripe Tax.
+
+Assign appropriate categories to Garment products (apparel) and to Decoration products (printing/service).
+
+Set default tax behavior (exclusive vs inclusive) for the Prices.
+
+C. Create shipping rates
+
+In Settings → Shipping rates, add:
+
+“Local pickup” — $0 (optional)
+
+“UPS Ground (Flat)” — $____
+
+“Expedited (Flat)” — $____
+
+Scope them to US (or wherever you sell) as needed.
+
+D. Share the IDs
+
+Send me the list: { skuId → priceId } for all tees and all dtf-*.
+
+Send me the shipping rate IDs (if you want Checkout to show a selector).
+
+5) UI deltas (we’re aligned)
+
+Each Design block: Garment selector + XS–3X grid + Readout + Placement (Front/Back) + Notes.
+
+Auto-select Decoration SKU from readout (ceil to 4/8/12/16 + placement). Let the user override if needed.
+
+Show two subtotals per block (Garment, Decoration) and a Line total.
+
+Footer shows shipping, tax, grand total.
+
+6) Decisions I need from you
+
+Tax behavior: tax-exclusive (typical) or inclusive?
+
+Shipping rates: which options/amounts do you want to expose in Checkout?
+
+Ceiling rule: OK to auto-ceil readout to the next size SKU (e.g., 9.2" → 12") and block if >16"?
+
+If not, define the policy you want.
+
+7) After you confirm
+
+I’ll assemble:
+
+A constants block (stub constants) mapping your SKUs → Stripe Price IDs, plus the readout→decoration-SKU tier map.
+
+The payload contract (exact metadata fields + how we construct the two Stripe lines per design).
+
+The OrderLines sheet schema (column names).
+
+No code until you green-light those specifics.

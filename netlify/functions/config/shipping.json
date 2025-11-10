@@ -1,0 +1,11 @@
+{
+  "model": "count",
+  "domesticOnly": true,
+  "brackets": [
+    { "min": 1,  "max": 4,  "amount_cents": 995 },
+    { "min": 5,  "max": 10, "amount_cents": 1495 },
+    { "min": 11, "max": 18, "amount_cents": 1995 },
+    { "min": 19, "max": 24, "amount_cents": 2795 },
+    { "min": 25, "max": 35, "amount_cents": 3995 }
+  ]
+}

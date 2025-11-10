@@ -548,3 +548,5 @@ select option {
 .qt-order-panel.is-open~.qt-panel-handle {
   right: var(--panel-w);
 }
+
+.error { color: #c62828; }
