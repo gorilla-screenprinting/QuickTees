@@ -1,7 +1,7 @@
 // netlify/functions/create-checkout.js
 const Stripe = require('stripe');
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-
+const { google } = require('googleapis');
 const { GARMENT_PRICE_IDS, DTF_PRICE_IDS } = require('./config/prices.js');
 const SHIPPING_TABLE = require('./config/shipping.json');
 
@@ -50,15 +50,15 @@ function buildLineItemsFromBody(body = {}) {
   const items = Array.isArray(body.items) && body.items.length
     ? body.items
     : [{
-        designLabel: body.designLabel || 'Design',
-        garmentSKU: body.garmentSKU || body.productId, // legacy support
-        placement: (body.placement || 'front'),
-        sizeRun: body.sizeRun || { L: 1 },             // minimal default
-        readoutIn: body.readoutIn || null,
-        tierIn: body.tierIn || null,
-        fileId: body.fileId || '',
-        note: body.orderNote || ''
-      }];
+      designLabel: body.designLabel || 'Design',
+      garmentSKU: body.garmentSKU || body.productId, // legacy support
+      placement: (body.placement || 'front'),
+      sizeRun: body.sizeRun || { L: 1 },             // minimal default
+      readoutIn: body.readoutIn || null,
+      tierIn: body.tierIn || null,
+      fileId: body.fileId || '',
+      note: body.orderNote || ''
+    }];
 
   for (const it of items) {
     const qty = Math.max(0, sumSizeRun(it.sizeRun));
@@ -103,6 +103,26 @@ function buildLineItemsFromBody(body = {}) {
   return { line_items, totalCount, items };
 }
 
+async function getDriveFileName(fileId) {
+  if (!fileId) return '';
+  try {
+    const auth = new google.auth.GoogleAuth({
+      credentials: JSON.parse(process.env.GDRIVE_SERVICE_KEY),
+      scopes: ['https://www.googleapis.com/auth/drive.readonly'],
+    });
+    const drive = google.drive({ version: 'v3', auth });
+    const { data } = await drive.files.get({
+      fileId,
+      fields: 'name',
+      supportsAllDrives: true,   // <-- add this
+    });
+    return data?.name || '';
+  } catch (e) {
+    console.error('drive filename lookup failed:', e.message);
+    return '';
+  }
+}
+
 exports.handler = async (event) => {
   if (event.httpMethod !== 'POST') {
     return { statusCode: 405, body: 'Method Not Allowed' };
@@ -111,6 +131,10 @@ exports.handler = async (event) => {
   let body = {};
   try { body = JSON.parse(event.body || '{}'); }
   catch { return { statusCode: 400, body: 'Invalid JSON' }; }
+  if (!body.designLabel && body.fileId) {
+    const nm = await getDriveFileName(body.fileId);
+    if (nm) body.designLabel = String(nm).replace(/\.[^.]+$/, '');
+  }
   body.garmentSKU = body.garmentSKU || toSku(body.productId);
 
 
