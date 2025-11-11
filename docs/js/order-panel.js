@@ -126,7 +126,7 @@
   });
 })();
 
-// ---- Minimal Checkout wiring (legacy body shape) ----
+// ---- Minimal Checkout wiring (size breakdown) ----
 (function () {
   const placeBtn = document.getElementById('qtPlaceBtn');
   if (!placeBtn) return;
@@ -134,15 +134,32 @@
   placeBtn.addEventListener('click', async () => {
     try {
       const emailEl = document.getElementById('qtEmail');
-      const qtyEl = document.getElementById('qtQty');
       const notesEl = document.getElementById('qtNotes');
       const blankEl = document.getElementById('blankSelect');
 
       const email = (emailEl && emailEl.value || '').trim();
-      const qty = parseInt(qtyEl && qtyEl.value, 10) || 1;
-      if (qty >= 36) { alert('Orders of 36+ are screenprint-only. Contact us for a quote.'); return; }
       const note = notesEl ? notesEl.value : '';
       const garmentSKU = (blankEl && blankEl.value || '').trim();
+
+      // sizes → sizeRun
+      const sizeInputs = [
+        ['XS','qtSzXS'],
+        ['SM','qtSzSM'],
+        ['MD','qtSzMD'],
+        ['LG','qtSzLG'],
+        ['XL','qtSzXL'],
+        ['2X','qtSz2X'],
+        ['3X','qtSz3X'],
+      ];
+      const sizeRun = {};
+      let totalQty = 0;
+      for (const [label, id] of sizeInputs) {
+        const v = parseInt(document.getElementById(id)?.value, 10) || 0;
+        if (v > 0) { sizeRun[label] = v; totalQty += v; }
+      }
+
+      // placement (front/back)
+      const placement = document.querySelector('input[name="qtPlacement"]:checked')?.value || 'front';
 
       // state from earlier steps
       const fileId = (window.orderState && window.orderState.fileId) || '';
@@ -150,20 +167,22 @@
       const tooLarge = !!window.orderState?.currentTier?.tooLarge;
       const readoutIn = window.orderState?.readoutIn || null;
 
-      // simple guards
+      // guards
       if (!email) { alert('Enter a valid email.'); return; }
       if (!fileId) { alert('Upload your artwork before placing the order.'); return; }
       if (tooLarge) { alert('Too large for DTF — max 16".'); return; }
       if (!garmentSKU) { alert('Pick a shirt blank.'); return; }
+      if (totalQty <= 0) { alert('Enter at least one shirt across sizes.'); return; }
+      if (totalQty >= 36) { alert('Orders of 36+ are screenprint-only. Contact us for a quote.'); return; }
 
-      // Legacy body your server understands (no items[])
+      // Request body (legacy single item shape your server supports)
       const body = {
         email,
         customerName: (document.getElementById('qtName')?.value || '').trim(),
         customerPhone: (document.getElementById('qtPhone')?.value || '').trim(),
-        productId: garmentSKU,        // server maps this to garment SKU
-        placement: 'front',           // keep simple for now
-        sizeRun: { L: qty },          // total qty (grid coming later)
+        productId: garmentSKU,   // server maps this to garment SKU
+        placement,               // 'front' or 'back'
+        sizeRun,                 // e.g., { XS:2, SM:0, MD:3, LG:5, XL:0, '2X':1, '3X':0 }
         fileId,
         orderNote: note,
         tierIn,

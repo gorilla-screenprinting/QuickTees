@@ -46,17 +46,29 @@
         </div>
       </div>
 
-      <!-- Line item (single for now; grid later) -->
-      <div class="qt-op-row">
-        <div class="qt-op-field">
-          <label for="qtQty">Quantity</label>
-          <input id="qtQty" type="number" min="1" step="1" value="24">
+      <!-- Sizes -->
+      <div class="qt-op-field">
+        <label>Sizes</label>
+        <div class="qt-op-row qt-sizes">
+          <label>XS <input id="qtSzXS" type="number" min="0" step="1" value="0" inputmode="numeric"></label>
+          <label style="margin-left:.75rem;">SM <input id="qtSzSM" type="number" min="0" step="1" value="0"
+              inputmode="numeric"></label>
+          <label style="margin-left:.75rem;">MD <input id="qtSzMD" type="number" min="0" step="1" value="0"
+              inputmode="numeric"></label>
+          <label style="margin-left:.75rem;">LG <input id="qtSzLG" type="number" min="0" step="1" value="0"
+              inputmode="numeric"></label>
+          <label style="margin-left:.75rem;">XL <input id="qtSzXL" type="number" min="0" step="1" value="0"
+              inputmode="numeric"></label>
+          <label style="margin-left:.75rem;">2X <input id="qtSz2X" type="number" min="0" step="1" value="0"
+              inputmode="numeric"></label>
+          <label style="margin-left:.75rem;">3X <input id="qtSz3X" type="number" min="0" step="1" value="0"
+              inputmode="numeric"></label>
         </div>
-        <div class="qt-op-field">
-          <label for="qtUnit">Unit price</label>
-          <input id="qtUnit" type="number" min="0" step="0.01" value="5.00">
+        <div class="qt-op-hint" style="font-size:.9em;opacity:.8;margin-top:.25rem;">
+          Enter counts; leave 0 if none. (36+ triggers screenprint quote.)
         </div>
       </div>
+
 
       <!-- Placement -->
       <div class="qt-op-field">
