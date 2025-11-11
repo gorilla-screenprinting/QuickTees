@@ -6,6 +6,20 @@ const { GARMENT_PRICE_IDS, DTF_PRICE_IDS } = require('./config/prices.js');
 const SHIPPING_TABLE = require('./config/shipping.json');
 
 // ---- helpers ----
+
+// accept filename like "Heavy_White_Cotton_T.png" and map to SKU
+const FILENAME_TO_SKU = {
+  heavy_white_cotton_t: 'tee-heavy-white',
+  heavy_black_cotton_t: 'tee-heavy-black',
+  light_white_cotton_t: 'tee-light-white',
+  light_black_cotton_t: 'tee-light-black',
+};
+function toSku(id) {
+  if (!id) return '';
+  const k = String(id).toLowerCase().replace(/\.[^.]+$/, ''); // strip ".png"
+  return FILENAME_TO_SKU[k] || id;
+}
+
 function sumSizeRun(sizeRun = {}) {
   return Object.values(sizeRun).reduce((a, b) => a + (Number.isFinite(b) ? b : 0), 0);
 }
@@ -97,6 +111,8 @@ exports.handler = async (event) => {
   let body = {};
   try { body = JSON.parse(event.body || '{}'); }
   catch { return { statusCode: 400, body: 'Invalid JSON' }; }
+  body.garmentSKU = body.garmentSKU || toSku(body.productId);
+
 
   try {
     // Build items and shipping
