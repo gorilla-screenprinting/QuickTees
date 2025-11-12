@@ -126,7 +126,7 @@
   });
 })();
 
-// ---- Minimal Checkout wiring (size breakdown) ----
+// ---- Minimal Checkout wiring (size breakdown, text inputs) ----
 (function () {
   const placeBtn = document.getElementById('qtPlaceBtn');
   if (!placeBtn) return;
@@ -141,8 +141,8 @@
       const note = notesEl ? notesEl.value : '';
       const garmentSKU = (blankEl && blankEl.value || '').trim();
 
-      // sizes → sizeRun
-      const sizeInputs = [
+      // sizes → sizeRun (strip non-digits so text inputs behave like numbers)
+      const ids = [
         ['XS','qtSzXS'],
         ['SM','qtSzSM'],
         ['MD','qtSzMD'],
@@ -153,8 +153,9 @@
       ];
       const sizeRun = {};
       let totalQty = 0;
-      for (const [label, id] of sizeInputs) {
-        const v = parseInt(document.getElementById(id)?.value, 10) || 0;
+      for (const [label, id] of ids) {
+        const raw = (document.getElementById(id)?.value || '').replace(/\D+/g, '');
+        const v = parseInt(raw, 10) || 0;
         if (v > 0) { sizeRun[label] = v; totalQty += v; }
       }
 
@@ -182,14 +183,13 @@
         customerPhone: (document.getElementById('qtPhone')?.value || '').trim(),
         productId: garmentSKU,   // server maps this to garment SKU
         placement,               // 'front' or 'back'
-        sizeRun,                 // e.g., { XS:2, SM:0, MD:3, LG:5, XL:0, '2X':1, '3X':0 }
+        sizeRun,                 // e.g., { XS:2, LG:5, '2X':1 }
         fileId,
         orderNote: note,
         tierIn,
         readoutIn
       };
 
-      // POST to Netlify function
       const res = await fetch('/.netlify/functions/create-checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -204,7 +204,7 @@
 
       const data = await res.json();
       if (data && data.url) {
-        window.location.href = data.url; // redirect to Stripe Checkout
+        window.location.href = data.url;
       } else {
         alert('Unexpected response from checkout.');
       }

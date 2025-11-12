@@ -49,54 +49,50 @@
       <!-- Sizes -->
       <div class="qt-op-field">
         <label>Sizes</label>
-        <div class="qt-op-row qt-sizes">
-          <label>XS <input id="qtSzXS" type="number" min="0" step="1" value="0" inputmode="numeric"></label>
-          <label style="margin-left:.75rem;">SM <input id="qtSzSM" type="number" min="0" step="1" value="0"
-              inputmode="numeric"></label>
-          <label style="margin-left:.75rem;">MD <input id="qtSzMD" type="number" min="0" step="1" value="0"
-              inputmode="numeric"></label>
-          <label style="margin-left:.75rem;">LG <input id="qtSzLG" type="number" min="0" step="1" value="0"
-              inputmode="numeric"></label>
-          <label style="margin-left:.75rem;">XL <input id="qtSzXL" type="number" min="0" step="1" value="0"
-              inputmode="numeric"></label>
-          <label style="margin-left:.75rem;">2X <input id="qtSz2X" type="number" min="0" step="1" value="0"
-              inputmode="numeric"></label>
-          <label style="margin-left:.75rem;">3X <input id="qtSz3X" type="number" min="0" step="1" value="0"
-              inputmode="numeric"></label>
-        </div>
-        <div class="qt-op-hint" style="font-size:.9em;opacity:.8;margin-top:.25rem;">
-          Enter counts; leave 0 if none. (36+ triggers screenprint quote.)
+        <div class="qt-sizes">
+          <label>XS <input id="qtSzXS" type="text" inputmode="numeric" pattern="\d*" maxlength="2" value="0"></label>
+          <label>SM <input id="qtSzSM" type="text" inputmode="numeric" pattern="\d*" maxlength="2" value="0"></label>
+          <label>MD <input id="qtSzMD" type="text" inputmode="numeric" pattern="\d*" maxlength="2" value="0"></label>
+          <label>LG <input id="qtSzLG" type="text" inputmode="numeric" pattern="\d*" maxlength="2" value="0"></label>
+          <label>XL <input id="qtSzXL" type="text" inputmode="numeric" pattern="\d*" maxlength="2" value="0"></label>
+          <label>2X <input id="qtSz2X" type="text" inputmode="numeric" pattern="\d*" maxlength="2" value="0"></label>
+          <label>3X <input id="qtSz3X" type="text" inputmode="numeric" pattern="\d*" maxlength="2" value="0"></label>
         </div>
       </div>
 
+      <div class="qt-op-hint" style="font-size:.9em;opacity:.8;margin-top:.25rem;">
+        Enter counts; leave 0 if none. (36+ triggers screenprint quote.)
+      </div>
+    </div>
 
-      <!-- Placement -->
-      <div class="qt-op-field">
-        <label>Placement</label>
-        <div class="qt-op-row" role="radiogroup" aria-label="Placement">
-          <label><input type="radio" name="qtPlacement" id="qtPlacementFront" value="front" checked> Front</label>
-          <label style="margin-left: 1rem;"><input type="radio" name="qtPlacement" id="qtPlacementBack" value="back">
-            Back</label>
-        </div>
-      </div>
 
-      <!-- Notes -->
-      <div class="qt-op-field">
-        <label for="qtNotes">Notes (optional)</label>
-        <textarea id="qtNotes" rows="3" placeholder='e.g., "Front chest 10&quot; wide"'></textarea>
+    <!-- Placement -->
+    <div class="qt-op-field">
+      <label>Placement</label>
+      <div class="qt-op-row" role="radiogroup" aria-label="Placement">
+        <label><input type="radio" name="qtPlacement" id="qtPlacementFront" value="front" checked> Front</label>
+        <label style="margin-left: 1rem;"><input type="radio" name="qtPlacement" id="qtPlacementBack" value="back">
+          Back</label>
       </div>
+    </div>
 
-      <!-- Summary -->
-      <div class="qt-op-summary" id="qtSummary">
-        <div><span>Subtotal</span><strong id="qtSubtotal">$0.00</strong></div>
-        <div><span>Tax</span><strong id="qtTax">Calculated at checkout</strong></div>
-        <div><span>Shipping</span><strong id="qtShipping">$0.00</strong></div>
-        <hr>
-        <div><span>Total</span><strong id="qtTotal">$0.00</strong></div>
-      </div>
-      <div class="qt-note">
-        UPS Ground only. Orders of <strong>36+</strong> are screenprint-only—contact us for a quote.
-      </div>
+    <!-- Notes -->
+    <div class="qt-op-field">
+      <label for="qtNotes">Notes (optional)</label>
+      <textarea id="qtNotes" rows="3" placeholder='e.g., "Front chest 10&quot; wide"'></textarea>
+    </div>
+
+    <!-- Summary -->
+    <div class="qt-op-summary" id="qtSummary">
+      <div><span>Subtotal</span><strong id="qtSubtotal">$0.00</strong></div>
+      <div><span>Tax</span><strong id="qtTax">Calculated at checkout</strong></div>
+      <div><span>Shipping</span><strong id="qtShipping">$0.00</strong></div>
+      <hr>
+      <div><span>Total</span><strong id="qtTotal">$0.00</strong></div>
+    </div>
+    <div class="qt-note">
+      UPS Ground only. Orders of <strong>36+</strong> are screenprint-only—contact us for a quote.
+    </div>
     </div>
 
     <div class="qt-op-footer">

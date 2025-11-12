@@ -550,3 +550,7 @@ select option {
 }
 
 .error { color: #c62828; }
+
+.qt-sizes{display:flex;flex-wrap:nowrap;gap:.75rem;white-space:nowrap;overflow-x:auto}
+.qt-sizes label{display:inline-flex;align-items:center;gap:.35rem}
+.qt-sizes input[type=number]{width:3.5ch;text-align:right;padding:.25rem .35rem;font-variant-numeric:tabular-nums}
