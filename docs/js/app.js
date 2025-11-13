@@ -1,4 +1,4 @@
-// app.js — lean, no auto-fit, no duplicate select code
+// app.js 
 (() => {
   'use strict';
 
@@ -13,11 +13,43 @@
   const fitBtn = document.getElementById('fitBtn');
   const sizeReadout = document.getElementById('sizeReadout');
 
-  // BG removal UI
-  const bgSwatches = document.getElementById('bgSwatches');
-  const bgModeSel = document.getElementById('bgMode');
-  const bgTolInput = document.getElementById('bgTol');
-  const bgFeatherIn = document.getElementById('bgFeather');
+  const sideFrontBtn = document.getElementById('qtSideFront');
+  const sideBackBtn = document.getElementById('qtSideBack');
+
+  // ===== Public order state =====
+  window.orderState = window.orderState || {};
+  if (!window.orderState.activeSide) window.orderState.activeSide = 'front'; // default
+
+  window.orderState.sides = window.orderState.sides || {};
+
+  function defaultArtPose() {
+    return { tx: 1400 * 0.5, ty: 1600 * 0.45, scale: 0.5 }; // uses your STAGE constants
+  }
+
+  function snapshotSide(side) {
+    window.orderState.sides[side] = {
+      artImg: state.artImg || null,
+      processedArt: processedArt || null,
+      art: { ...state.art },
+      bgSel: BG_SELECTED || null
+    };
+  }
+
+  function restoreSide(side) {
+    const saved = window.orderState.sides[side];
+    if (saved) {
+      state.artImg = saved.artImg || null;
+      processedArt = saved.processedArt || null;
+      state.art = saved.art ? { ...saved.art } : defaultArtPose();
+      BG_SELECTED = saved.bgSel || null;
+    } else {
+      state.artImg = null;
+      processedArt = null;
+      state.art = defaultArtPose();
+      BG_SELECTED = null;
+    }
+    scheduleDraw();
+  }
 
   // ===== Constants =====
   const STAGE = { w: 1400, h: 1600 };
@@ -37,7 +69,12 @@
   PRINT.x = Math.round((STAGE.w - PRINT.w) / 2);
   PRINT.y = Math.max(SAFETY, Math.round((STAGE.h - PRINT.h) / 2 - STAGE.h * 0.06));
 
-  // ===== BG state =====
+  // ===== BG removal state =====
+  const bgSwatches = document.getElementById('bgSwatches');
+  const bgModeSel = document.getElementById('bgMode');
+  const bgTolInput = document.getElementById('bgTol');
+  const bgFeatherIn = document.getElementById('bgFeather');
+
   const BG = { mode: 'none', tol: 40, feather: 1 };
   let BG_SELECTED = null;
   let processedArt = null;
@@ -53,10 +90,7 @@
     dpr: Math.min(window.devicePixelRatio || 1, 1.75),
   };
 
-  // Keep upload + checkout info here
-  window.orderState = window.orderState || {};
-
-
+  // Manifest + print box derived from blank
   let MANIFEST = null;
   let PPI_STAGE = null;
   let BOX_PX = null;
@@ -154,26 +188,23 @@
   function updateReadout() {
     if (!sizeReadout) return;
     const s = getArtSizeInches();
-    window.orderState = window.orderState || {};
     window.orderState.readoutIn = s || null;
 
     sizeReadout.textContent = s ? `${s.w_in.toFixed(2)}" W × ${s.h_in.toFixed(2)}" H` : '—';
+
     if (s && typeof window.deriveDtfTier === 'function') {
-      const tier = window.deriveDtfTier(s); // { tierIn, key, tooLarge }
-      window.orderState = window.orderState || {};
-      window.orderState.currentTier = tier;
+      window.orderState.currentTier = window.deriveDtfTier(s); // { tierIn, key, tooLarge }
     }
 
     const placeBtn = document.getElementById('qtPlaceBtn');
     if (window.orderState?.currentTier?.tooLarge) {
       sizeReadout.textContent = `Too large for DTF — max 16"`;
-      sizeReadout.classList.add('error'); // optional; style in CSS if you want
+      sizeReadout.classList.add('error');
       if (placeBtn) placeBtn.disabled = true;
     } else {
       sizeReadout.classList.remove('error');
       if (placeBtn) placeBtn.disabled = false;
     }
-
   }
 
   // ===== Rendering =====
@@ -193,7 +224,7 @@
       ctx.drawImage(state.blank, x, y, w, h);
     }
 
-    // Placement guide (only while dragging)
+    // Print guide while dragging
     if (state.dragging) {
       const a = area();
       ctx.save();
@@ -243,7 +274,7 @@
 
   const fitArtToMaxArea = () => placeArtTopMaxWidth();
 
-  // ===== Corner sampling & swatches =====
+  // ===== BG tools =====
   function sampleCornerColors(img) {
     const w = img.width, h = img.height, off = 2;
     const c = document.createElement('canvas'); c.width = w; c.height = h;
@@ -298,7 +329,6 @@
     });
   }
 
-  // ===== Mask builders =====
   function applyMaskToImage(pixels, mask) {
     for (let i = 0, j = 0; i < pixels.length; i += 4, j++) {
       pixels[i + 3] = Math.min(pixels[i + 3], mask[j]);
@@ -352,49 +382,6 @@
     }
   }
 
-  function makeMaskThresholdTarget(pixels, w, h, tol, outMask, targetRGB) {
-    const tol2 = Math.pow((tol / 100) * 255, 2);
-    const [tr, tg, tb] = targetRGB;
-    for (let i = 0, j = 0; i < pixels.length; i += 4, j++) {
-      const r = pixels[i], g = pixels[i + 1], b = pixels[i + 2];
-      const d2 = (r - tr) ** 2 + (g - tg) ** 2 + (b - tb) ** 2;
-      outMask[j] = (d2 < tol2) ? 0 : 255;
-    }
-  }
-
-  function makeMaskWandSeeds(pixels, w, h, tol, outMask, target) {
-    outMask.fill(255);
-    const tol2 = Math.pow((tol / 100) * 255, 2);
-    const visited = new Uint8Array(w * h);
-    const q = [];
-    const idxOf = { tl: 0, tr: w - 1, bl: (h - 1) * w, br: w * h - 1 };
-    const [tr, tg, tb] = target.rgb;
-
-    target.corners.forEach(c => {
-      const idx = idxOf[c];
-      if (idx != null) q.push(idx);
-    });
-
-    while (q.length) {
-      const idx = q.pop();
-      if (visited[idx]) continue;
-      visited[idx] = 1;
-
-      const i4 = idx * 4;
-      const r = pixels[i4], g = pixels[i4 + 1], b = pixels[i4 + 2];
-      const d2 = (r - tr) ** 2 + (g - tg) ** 2 + (b - tb) ** 2;
-      if (d2 >= tol2) continue;
-
-      outMask[idx] = 0;
-
-      const x = idx % w, y = (idx / w) | 0;
-      if (x > 0) q.push(idx - 1);
-      if (x < w - 1) q.push(idx + 1);
-      if (y > 0) q.push(idx - w);
-      if (y < h - 1) q.push(idx + w);
-    }
-  }
-
   async function rebuildProcessedArt() {
     processedArt = null;
     if (!state.artImg || BG.mode === 'none') { scheduleDraw(); return; }
@@ -438,9 +425,7 @@
 
   async function setBlankFromFile(filename) {
     if (!filename) {
-      state.blank = null;
-      PPI_STAGE = null;
-      BOX_PX = null;
+      state.blank = null; PPI_STAGE = null; BOX_PX = null;
       return scheduleDraw();
     }
 
@@ -481,6 +466,17 @@
     img.src = `./assets/shirt_blanks/${filename}`;
   }
 
+  // side-aware setter; fall back to front if back missing
+  async function setBlankForSide(baseFrontFile, side) {
+    if (!baseFrontFile) return setBlankFromFile('');
+
+    const base = baseFrontFile.replace(/_(front|back)(?=\.[^.]+$)/i, '_front');
+    const target = base.replace(/_front(?=\.[^.]+$)/i, side === 'back' ? '_back' : '_front');
+
+    const manifest = await ensureManifest();
+    return setBlankFromFile(manifest.some(m => m.file === target) ? target : base);
+  }
+
   function labelFromFilename(name) {
     const base = name.replace(/\.[^.]+$/, '');
     return base.replace(/[_-]+/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
@@ -491,16 +487,27 @@
       const items = await ensureManifest();
       if (!blankSelect) return;
 
-      blankSelect.innerHTML = '';
-      items.forEach((it, idx) => {
-        const opt = document.createElement('option');
-        opt.value = it.file;
-        opt.textContent = it.label || labelFromFilename(it.file);
-        if (idx === 0) opt.selected = true;
-        blankSelect.appendChild(opt);
-      });
+      const fronts = items.filter(m => /_front\.png$/i.test(m.file));
 
-      if (items.length) await setBlankFromFile(items[0].file);
+      blankSelect.innerHTML = '';
+      for (const it of fronts) {
+        const opt = document.createElement('option');
+        opt.value = it.file; // FRONT filename
+        opt.textContent = it.label || labelFromFilename(it.file);
+        blankSelect.appendChild(opt);
+      }
+
+      const initial = (blankSelect.value && fronts.some(m => m.file === blankSelect.value))
+        ? blankSelect.value
+        : (fronts[0]?.file || '');
+
+      if (initial) {
+        blankSelect.value = initial;
+        window.orderState.blankBase = initial; // store FRONT base
+        await setBlankForSide(initial, window.orderState.activeSide);
+      } else {
+        await setBlankFromFile('');
+      }
     } catch (err) {
       console.error('Failed to load shirt manifest:', err);
       if (blankSelect) blankSelect.innerHTML = '<option value="">(No blanks found)</option>';
@@ -517,9 +524,42 @@
     });
     if (!res.ok) throw new Error('Checkout create failed');
     const { url } = await res.json();
-    window.location.href = url; // redirect to Stripe Checkout
+    window.location.href = url;
   }
 
+  // ===== Side toggle =====
+  function setActiveSide(side) {
+    if (!sideFrontBtn || !sideBackBtn) return;
+    const prev = window.orderState.activeSide || 'front';
+
+    // save previous side’s art state
+    snapshotSide(prev);
+
+    // update UI selection
+    const isFront = side === 'front';
+    sideFrontBtn.setAttribute('aria-selected', String(isFront));
+    sideBackBtn.setAttribute('aria-selected', String(!isFront));
+
+    // switch logical side
+    window.orderState.activeSide = isFront ? 'front' : 'back';
+
+    // swap the blank image to match the side
+    if (window.orderState.blankBase) {
+      setBlankForSide(window.orderState.blankBase, window.orderState.activeSide);
+    }
+
+    // restore that side’s art state (or clear if none yet)
+    restoreSide(window.orderState.activeSide);
+
+    // event (if anything else listens)
+    document.dispatchEvent(new CustomEvent('qt:side-changed', {
+      detail: { side: window.orderState.activeSide }
+    }));
+  }
+
+
+  sideFrontBtn?.addEventListener('click', () => setActiveSide('front'));
+  sideBackBtn?.addEventListener('click', () => setActiveSide('back'));
 
   // ===== Events =====
   if (artBtn && artInput) artBtn.addEventListener('click', () => artInput.click());
@@ -532,7 +572,7 @@
         return;
       }
 
-      // 1) Show local preview immediately
+      // local preview
       if (artNameEl) artNameEl.textContent = f.name;
       state.artImg = await loadImageFromFile(f);
       placeArtTopMaxWidth();
@@ -540,8 +580,9 @@
       const groups = dedupeColors(sampled, 12);
       renderSwatches(groups);
       rebuildProcessedArt();
+      snapshotSide(window.orderState.activeSide || 'front');
 
-      // 2) Upload full-res file to Drive via Netlify Function (not Apps Script)
+      // upload to Drive
       try {
         if (artBtn) artBtn.disabled = true;
         if (artNameEl) artNameEl.textContent = `Uploading: ${f.name}…`;
@@ -551,49 +592,40 @@
           order_note: document.querySelector('#qtNotes')?.value || ''
         };
 
-
         const form = new FormData();
         form.append('file', f, f.name);
         form.append('customer_email', meta.customer_email);
         form.append('order_note', meta.order_note);
 
-        const res = await fetch('/.netlify/functions/upload-to-drive', {
-          method: 'POST',
-          body: form
-        });
+        const res = await fetch('/.netlify/functions/upload-to-drive', { method: 'POST', body: form });
         if (!res.ok) throw new Error(`Upload failed HTTP ${res.status}`);
         const result = await res.json();
 
-        // Normalize API response and store for checkout
-        const fileId = result.id || result.fileId;          // supports either shape
-        window.orderState.fileId = fileId;                  // <- use .fileId (not .driveFileId)
-        window.orderState.orderNote = meta.order_note || ''; // keep the note for Stripe
-
-        // Store for checkout; existing order panel button will trigger payment
+        const fileId = result.id || result.fileId;
+        window.orderState.fileId = fileId;
+        window.orderState.orderNote = meta.order_note || '';
         window.orderState.pendingEmail = document.querySelector('#qtEmail')?.value || '';
 
-
         if (artNameEl) {
-          const safeName = f.name.replace(/[<>&]/g, s => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[s]));
-          artNameEl.innerHTML = `${safeName} ✓ uploaded — <a href="${result.webViewLink}" target="_blank" rel="noopener">Open in Drive</a>`;
+          const safe = f.name.replace(/[<>&]/g, s => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[s]));
+          artNameEl.innerHTML = `${safe} ✓ uploaded — <a href="${result.webViewLink}" target="_blank" rel="noopener">Open in Drive</a>`;
         }
       } catch (err) {
         console.error(err);
         if (artNameEl) artNameEl.textContent = `Upload failed: ${err.message}`;
-        // Clear the same fields we set on success
         window.orderState.fileId = null;
         window.orderState.orderNote = '';
-        window.orderState.driveViewLink = null; // keep if you show the link elsewhere
       } finally {
-
         if (artBtn) artBtn.disabled = false;
       }
     });
   }
 
-
   if (blankSelect) {
-    blankSelect.addEventListener('change', (e) => setBlankFromFile(e.target.value || ''));
+    blankSelect.addEventListener('change', (e) => {
+      window.orderState.blankBase = e.target.value || '';
+      setBlankForSide(window.orderState.blankBase, window.orderState.activeSide);
+    });
   }
 
   if (centerBtn) centerBtn.addEventListener('click', centerArt);
@@ -618,33 +650,23 @@
     });
   }
 
-  // Hook the existing order-panel button to start Stripe checkout
   const qtPlaceBtn = document.getElementById('qtPlaceBtn');
   if (qtPlaceBtn) {
     qtPlaceBtn.addEventListener('click', () => {
       const email = (document.querySelector('#qtEmail')?.value || window.orderState.pendingEmail || '').trim();
       const fileId = window.orderState.fileId || '';
       const orderNote = window.orderState.orderNote || '';
-      if (!fileId) {
-        alert('Upload your art first, then try again.');
-        return;
-      }
+      if (!fileId) { alert('Upload your art first, then try again.'); return; }
       startCheckout({ email, fileId, orderNote });
     });
   }
 
-
-
-
-  // Pointer interactions
+  // ===== Pointer interactions =====
   const pointers = new Map();
   let pinchStartDist = null;
   let pinchStartScale = 1;
 
-  function dist(a, b) {
-    const dx = a.x - b.x, dy = a.y - b.y;
-    return Math.hypot(dx, dy);
-  }
+  function dist(a, b) { const dx = a.x - b.x, dy = a.y - b.y; return Math.hypot(dx, dy); }
 
   canvas.addEventListener('pointerdown', (e) => {
     canvas.setPointerCapture(e.pointerId);
@@ -712,11 +734,11 @@
   canvas.addEventListener('touchstart', (e) => e.preventDefault(), { passive: false });
   canvas.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
 
-  // Resize
-  window.addEventListener('resize', setCanvasSize);
-  window.addEventListener('orientationchange', setCanvasSize);
-
-  // Boot
+  // ===== Boot =====
+  setActiveSide(window.orderState.activeSide); // sync button styles first
   setCanvasSize();
   loadShirtManifest();
+
+  window.addEventListener('resize', setCanvasSize);
+  window.addEventListener('orientationchange', setCanvasSize);
 })();

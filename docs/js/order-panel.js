@@ -126,6 +126,52 @@
   });
 })();
 
+// ---- Two-sided: minimal side state + toggle wiring ----
+(function () {
+  // Ensure a shared orderState exists
+  window.orderState = window.orderState || {};
+
+  // Sides container (front/back state lives here)
+  window.orderState.sides = window.orderState.sides || {
+    front: { fileId: '', designLabel: '', readoutIn: null, tierIn: null, placement: 'front' },
+    back:  { fileId: '', designLabel: '', readoutIn: null, tierIn: null, placement: 'back'  }
+  };
+  // Active side (default front)
+  window.orderState.activeSide = window.orderState.activeSide || 'front';
+
+  const sideFrontBtn = document.getElementById('qtSideFront');
+  const sideBackBtn  = document.getElementById('qtSideBack');
+
+  function setActiveSide(side){
+    const s = (side === 'back') ? 'back' : 'front';
+    window.orderState.activeSide = s;
+
+    // Toggle button states
+    if (sideFrontBtn && sideBackBtn) {
+      sideFrontBtn.setAttribute('aria-selected', String(s === 'front'));
+      sideBackBtn.setAttribute('aria-selected',  String(s === 'back'));
+    }
+
+    // Notify the rest of the app (stage, upload UI, etc.)
+    document.dispatchEvent(new CustomEvent('qt:side-changed', { detail: { side: s } }));
+
+    // If you already have a render method, you can call it here:
+    if (typeof window.renderStage === 'function') {
+      try { window.renderStage(); } catch {}
+    }
+  }
+
+  if (sideFrontBtn) sideFrontBtn.addEventListener('click', () => setActiveSide('front'));
+  if (sideBackBtn)  sideBackBtn.addEventListener('click',  () => setActiveSide('back'));
+
+  // Initialize the correct visual state on load
+  setActiveSide(window.orderState.activeSide);
+})();
+
+
+
+
+
 // ---- Minimal Checkout wiring (size breakdown, text inputs) ----
 (function () {
   const placeBtn = document.getElementById('qtPlaceBtn');

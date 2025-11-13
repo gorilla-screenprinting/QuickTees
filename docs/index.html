@@ -192,6 +192,13 @@
     </aside>
 
     <main class="stage">
+      <!-- Front/Back toggle -->
+      <div class="qt-side-toggle" id="qtSideToggle" role="tablist" aria-label="Shirt side">
+        <button class="qt-side-btn" id="qtSideFront" role="tab" aria-selected="true">Front</button>
+        <button class="qt-side-btn" id="qtSideBack" role="tab" aria-selected="false">Back</button>
+      </div>
+
+
       <canvas id="stage" aria-label="Mockup canvas"></canvas>
       <div class="overlay">
         <div id="printAreaGuide"></div>
@@ -202,6 +209,7 @@
   <script defer src="./config/tiers.js"></script>
   <script defer src="./js/bagel-select.js"></script>
   <script defer src="./js/fitline.js"></script>
+  <script defer src="./js/rmv-bckd.js"></script>
   <script defer src="./js/app.js"></script>
   <script defer src="./js/order-panel-shell.js"></script>
   <script defer src="./js/order-panel.js"></script>
