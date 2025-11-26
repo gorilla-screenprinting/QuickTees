@@ -214,11 +214,13 @@
       ['front', 'back'].forEach(side => {
         const s = sidesState[side] || {};
         if (!s.fileId) return;
+        const tier = s.tierIn ?? s.currentTier?.tierIn ?? activeTier?.tierIn ?? null;
+        const readout = s.readoutIn || s.currentTier?.readoutIn || activeTier?.readoutIn || null;
         sidesPayload[side] = {
           fileId: s.fileId,
           designLabel: s.designLabel || '',
-          tierIn: s.tierIn ?? s.currentTier?.tierIn ?? activeTier?.tierIn ?? null,
-          readoutIn: s.readoutIn || activeTier?.readoutIn || null,
+          tierIn: tier,
+          readoutIn: readout,
           placement: side
         };
         if (s.currentTier?.tooLarge) tooLarge = true;

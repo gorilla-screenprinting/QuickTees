@@ -242,7 +242,9 @@ exports.handler = async (event) => {
       body: JSON.stringify({ url: session.url })
     };
   } catch (err) {
+    const status = err.statusCode || 500;
+    const msg = err.message || 'Checkout session error';
     console.error('Checkout error:', err);
-    return { statusCode: 500, body: 'Checkout session error' };
+    return { statusCode: status, body: msg };
   }
 };
