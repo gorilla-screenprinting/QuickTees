@@ -492,19 +492,19 @@
       blankSelect.innerHTML = '';
       for (const it of fronts) {
         const opt = document.createElement('option');
-        opt.value = it.file; // FRONT filename
+        opt.value = it.sku || it.file; // SKU drives pricing
+        opt.dataset.file = it.file;    // filename drives preview art
         opt.textContent = it.label || labelFromFilename(it.file);
         blankSelect.appendChild(opt);
       }
 
-      const initial = (blankSelect.value && fronts.some(m => m.file === blankSelect.value))
-        ? blankSelect.value
-        : (fronts[0]?.file || '');
+      const initialOpt = blankSelect.options[0];
 
-      if (initial) {
-        blankSelect.value = initial;
-        window.orderState.blankBase = initial; // store FRONT base
-        await setBlankForSide(initial, window.orderState.activeSide);
+      if (initialOpt) {
+        blankSelect.value = initialOpt.value;
+        window.orderState.blankSku = initialOpt.value;
+        window.orderState.blankBase = initialOpt.dataset.file || '';
+        await setBlankForSide(window.orderState.blankBase, window.orderState.activeSide);
       } else {
         await setBlankFromFile('');
       }
@@ -623,7 +623,9 @@
 
   if (blankSelect) {
     blankSelect.addEventListener('change', (e) => {
-      window.orderState.blankBase = e.target.value || '';
+      const opt = e.target.selectedOptions?.[0];
+      window.orderState.blankSku = opt?.value || '';
+      window.orderState.blankBase = opt?.dataset.file || '';
       setBlankForSide(window.orderState.blankBase, window.orderState.activeSide);
     });
   }

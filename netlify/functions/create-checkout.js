@@ -13,6 +13,15 @@ const FILENAME_TO_SKU = {
   heavy_black_cotton_t: 'tee-heavy-black',
   light_white_cotton_t: 'tee-light-white',
   light_black_cotton_t: 'tee-light-black',
+  // Current manifest filenames
+  white_t_front: 'tee-heavy-white',
+  white_t_back: 'tee-heavy-white',
+  black_t_front: 'tee-heavy-black',
+  black_t_back: 'tee-heavy-black',
+  p_white_t_front: 'tee-heavy-white',
+  p_white_t_back: 'tee-heavy-white',
+  p_black_t_front: 'tee-heavy-black',
+  p_black_t_back: 'tee-heavy-black',
 };
 function toSku(id) {
   if (!id) return '';
