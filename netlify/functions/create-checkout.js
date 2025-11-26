@@ -140,6 +140,29 @@ function buildLineItemsFromBody(body = {}) {
   return { line_items, totalCount, items };
 }
 
+// Build a compact, metadata-safe snapshot (Stripe limits metadata values to 500 chars)
+function compactItemsForMetadata(items = []) {
+  try {
+    const compact = items.map(it => {
+      const sides = it.sides || {};
+      return {
+        g: it.garmentSKU || '',
+        s: Object.keys(it.sizeRun || {}),
+        f: it.fileId || sides.front?.fileId || '',
+        b: sides.back?.fileId || '',
+        tf: sides.front?.tierIn ?? it.tierIn ?? null,
+        tb: sides.back?.tierIn ?? null
+      };
+    });
+    let str = JSON.stringify(compact);
+    if (str.length > 480) str = str.slice(0, 477) + '...'; // stay under 500 char limit
+    return str;
+  } catch (e) {
+    console.error('compactItemsForMetadata failed:', e.message);
+    return '';
+  }
+}
+
 async function getDriveFileName(fileId) {
   if (!fileId) return '';
   try {
@@ -220,17 +243,8 @@ exports.handler = async (event) => {
         fileId: body.fileId || '',
         orderNote: body.orderNote || '',
         customerName: body.customerName || '',
-        customerPhone: body.customerPhone || '',
-        items: JSON.stringify(items.map(it => ({
-          designLabel: it.designLabel || '',
-          fileId: it.fileId || '',
-          garmentSKU: it.garmentSKU || '',
-          placement: (it.placement || 'front'),
-          sides: it.sides || null,
-          sizeRun: it.sizeRun || {},
-          tierIn: it.tierIn || null,
-          readoutIn: it.readoutIn || null
-        })))
+      customerPhone: body.customerPhone || '',
+      items: compactItemsForMetadata(items)
       },
 
       allow_promotion_codes: true
