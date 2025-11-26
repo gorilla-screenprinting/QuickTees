@@ -205,35 +205,42 @@
         if (v > 0) { sizeRun[label] = v; totalQty += v; }
       }
 
-      // placement (front/back)
-      const placement = document.querySelector('input[name="qtPlacement"]:checked')?.value || 'front';
+      // per-side state (supports two uploads)
+      const sidesState = window.orderState?.sides || {};
+      const activeTier = window.orderState?.currentTier || null;
 
-      // state from earlier steps
-      const fileId = (window.orderState && window.orderState.fileId) || '';
-      const tierIn = window.orderState?.currentTier?.tierIn || null;
-      const tooLarge = !!window.orderState?.currentTier?.tooLarge;
-      const readoutIn = window.orderState?.readoutIn || null;
+      const sidesPayload = {};
+      let tooLarge = !!activeTier?.tooLarge;
+      ['front', 'back'].forEach(side => {
+        const s = sidesState[side] || {};
+        if (!s.fileId) return;
+        sidesPayload[side] = {
+          fileId: s.fileId,
+          designLabel: s.designLabel || '',
+          tierIn: s.tierIn ?? s.currentTier?.tierIn ?? activeTier?.tierIn ?? null,
+          readoutIn: s.readoutIn || activeTier?.readoutIn || null,
+          placement: side
+        };
+        if (s.currentTier?.tooLarge) tooLarge = true;
+      });
 
       // guards
       if (!email) { alert('Enter a valid email.'); return; }
-      if (!fileId) { alert('Upload your artwork before placing the order.'); return; }
+      if (!Object.keys(sidesPayload).length) { alert('Upload your artwork (front and/or back) before placing the order.'); return; }
       if (tooLarge) { alert('Too large for DTF — max 16".'); return; }
       if (!garmentSKU) { alert('Pick a shirt blank.'); return; }
       if (totalQty <= 0) { alert('Enter at least one shirt across sizes.'); return; }
       if (totalQty >= 36) { alert('Orders of 36+ are screenprint-only. Contact us for a quote.'); return; }
 
-      // Request body (legacy single item shape your server supports)
+      // Request body (single garment with per-side decorations)
       const body = {
         email,
         customerName: (document.getElementById('qtName')?.value || '').trim(),
         customerPhone: (document.getElementById('qtPhone')?.value || '').trim(),
         productId: garmentSKU,   // server maps this to garment SKU
-        placement,               // 'front' or 'back'
         sizeRun,                 // e.g., { XS:2, LG:5, '2X':1 }
-        fileId,
         orderNote: note,
-        tierIn,
-        readoutIn
+        sides: sidesPayload
       };
 
       const res = await fetch('/.netlify/functions/create-checkout', {

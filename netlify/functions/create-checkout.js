@@ -56,6 +56,7 @@ function buildLineItemsFromBody(body = {}) {
   const line_items = [];
   let totalCount = 0;
 
+  // Legacy/array path: preserve behavior
   const items = Array.isArray(body.items) && body.items.length
     ? body.items
     : [{
@@ -66,7 +67,8 @@ function buildLineItemsFromBody(body = {}) {
       readoutIn: body.readoutIn || null,
       tierIn: body.tierIn || null,
       fileId: body.fileId || '',
-      note: body.orderNote || ''
+      note: body.orderNote || '',
+      sides: body.sides || null                      // optional { front:{...}, back:{...} }
     }];
 
   for (const it of items) {
@@ -82,31 +84,57 @@ function buildLineItemsFromBody(body = {}) {
     }
     line_items.push({ price: garmentPriceId, quantity: qty });
 
-    // Tier: explicit tierIn, else derive from readoutIn
-    let tier = Number(it.tierIn);
-    if (!Number.isFinite(tier) && it.readoutIn) {
-      const w = Number(it.readoutIn.w_in) || 0;
-      const h = Number(it.readoutIn.h_in) || 0;
-      const maxIn = Math.max(w, h);
-      if (maxIn <= 4) tier = 4;
-      else if (maxIn <= 8) tier = 8;
-      else if (maxIn <= 12) tier = 12;
-      else if (maxIn <= 16) tier = 16;
-      else {
-        const e = new Error('Artwork exceeds 16" — too large for DTF.');
-        e.statusCode = 400; throw e;
-      }
+    // Placements: support multi-side under one garment
+    const placements = [];
+    if (it.sides && typeof it.sides === 'object') {
+      ['front', 'back'].forEach(side => {
+        const s = it.sides[side];
+        if (s && (s.fileId || s.tierIn || s.readoutIn)) {
+          placements.push({ ...s, placement: side });
+        }
+      });
     }
-    if (!Number.isFinite(tier)) tier = 8; // safe default
+    if (!placements.length && (it.fileId || it.placement)) {
+      placements.push({
+        placement: it.placement || 'front',
+        fileId: it.fileId || '',
+        tierIn: it.tierIn || null,
+        readoutIn: it.readoutIn || null
+      });
+    }
 
-    // Decoration line
-    const dtfSku = decorationSkuFromTierAndPlacement(tier, it.placement);
-    const dtfPriceId = dtfSku ? DTF_PRICE_IDS[dtfSku] : null;
-    if (!dtfPriceId) {
-      const e = new Error(`Unknown decoration SKU: ${dtfSku}`);
+    if (!placements.length) {
+      const e = new Error('No art placements provided.');
       e.statusCode = 400; throw e;
     }
-    line_items.push({ price: dtfPriceId, quantity: qty });
+
+    for (const p of placements) {
+      // Tier: explicit tierIn, else derive from readoutIn
+      let tier = Number(p.tierIn);
+      const readout = p.readoutIn || it.readoutIn;
+      if (!Number.isFinite(tier) && readout) {
+        const w = Number(readout.w_in) || 0;
+        const h = Number(readout.h_in) || 0;
+        const maxIn = Math.max(w, h);
+        if (maxIn <= 4) tier = 4;
+        else if (maxIn <= 8) tier = 8;
+        else if (maxIn <= 12) tier = 12;
+        else if (maxIn <= 16) tier = 16;
+        else {
+          const e = new Error('Artwork exceeds 16" — too large for DTF.');
+          e.statusCode = 400; throw e;
+        }
+      }
+      if (!Number.isFinite(tier)) tier = 8; // safe default
+
+      const dtfSku = decorationSkuFromTierAndPlacement(tier, p.placement);
+      const dtfPriceId = dtfSku ? DTF_PRICE_IDS[dtfSku] : null;
+      if (!dtfPriceId) {
+        const e = new Error(`Unknown decoration SKU: ${dtfSku}`);
+        e.statusCode = 400; throw e;
+      }
+      line_items.push({ price: dtfPriceId, quantity: qty });
+    }
   }
 
   return { line_items, totalCount, items };
@@ -198,6 +226,7 @@ exports.handler = async (event) => {
           fileId: it.fileId || '',
           garmentSKU: it.garmentSKU || '',
           placement: (it.placement || 'front'),
+          sides: it.sides || null,
           sizeRun: it.sizeRun || {},
           tierIn: it.tierIn || null,
           readoutIn: it.readoutIn || null

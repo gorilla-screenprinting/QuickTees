@@ -97,6 +97,13 @@ _If you still see `create-order.js`, it’s legacy. It’s not used by the paid-
 
 **Note**: We don’t override `apiVersion` on the Stripe SDK (prevents “Invalid API version” errors).
 
+### 5.1) Pricing map (garments + DTF)
+- The blank selector reads `docs/assets/shirt_blanks/manifest.json`; each entry has `sku` (Stripe-facing) and `file` (front/back image). We reuse the same white/black art for value/premium; front/back pairs share the same SKU.
+- Recognized garment SKU keys (match `netlify/functions/config/prices.js`): `tee-light-white`, `tee-light-black`, `tee-heavy-white`, `tee-heavy-black`. Client sends the selected SKU as `productId`; server uses `GARMENT_PRICE_IDS` to fetch the Stripe price ID.
+- Decoration adds a second line item per shirt using `dtf-<tier>-<placement>` derived from art size (`docs/config/tiers.js` → `orderState.currentTier`) and placement (`front|back`), mapping to `DTF_PRICE_IDS`.
+- Shipping is a count-based flat rate from `netlify/functions/config/shipping.json`.
+- “Unknown garment SKU” means the selector value didn’t match those four SKU keys; keep manifest `sku` values aligned with `config/prices.js`.
+
 ---
 
 ## 6) Webhook (`stripe-webhook.js`) — Paid‑Only Sheet Write

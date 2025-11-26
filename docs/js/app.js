@@ -22,21 +22,35 @@
 
   window.orderState.sides = window.orderState.sides || {};
 
+  function ensureSide(side) {
+    if (!window.orderState.sides[side]) {
+      window.orderState.sides[side] = {
+        fileId: '',
+        designLabel: '',
+        readoutIn: null,
+        tierIn: null,
+        currentTier: null
+      };
+    }
+    return window.orderState.sides[side];
+  }
+
   function defaultArtPose() {
     return { tx: 1400 * 0.5, ty: 1600 * 0.45, scale: 0.5 }; // uses your STAGE constants
   }
 
   function snapshotSide(side) {
-    window.orderState.sides[side] = {
+    const slot = ensureSide(side);
+    Object.assign(slot, {
       artImg: state.artImg || null,
       processedArt: processedArt || null,
       art: { ...state.art },
       bgSel: BG_SELECTED || null
-    };
+    });
   }
 
   function restoreSide(side) {
-    const saved = window.orderState.sides[side];
+    const saved = ensureSide(side);
     if (saved) {
       state.artImg = saved.artImg || null;
       processedArt = saved.processedArt || null;
@@ -194,6 +208,11 @@
 
     if (s && typeof window.deriveDtfTier === 'function') {
       window.orderState.currentTier = window.deriveDtfTier(s); // { tierIn, key, tooLarge }
+      const side = window.orderState.activeSide || 'front';
+      const slot = ensureSide(side);
+      slot.readoutIn = s;
+      slot.currentTier = window.orderState.currentTier;
+      slot.tierIn = window.orderState.currentTier?.tierIn ?? null;
     }
 
     const placeBtn = document.getElementById('qtPlaceBtn');
@@ -602,7 +621,15 @@
         const result = await res.json();
 
         const fileId = result.id || result.fileId;
-        window.orderState.fileId = fileId;
+        const side = window.orderState.activeSide || 'front';
+        const slot = ensureSide(side);
+        const label = (f.name || '').replace(/\.[^.]+$/, '');
+        window.orderState.fileId = fileId; // legacy global
+        slot.fileId = fileId;
+        slot.designLabel = label;
+        slot.readoutIn = window.orderState.readoutIn || slot.readoutIn;
+        slot.tierIn = window.orderState.currentTier?.tierIn ?? slot.tierIn ?? null;
+        slot.currentTier = window.orderState.currentTier || slot.currentTier || null;
         window.orderState.orderNote = meta.order_note || '';
         window.orderState.pendingEmail = document.querySelector('#qtEmail')?.value || '';
 
@@ -649,17 +676,6 @@
     bgFeatherIn.addEventListener('input', () => {
       BG.feather = parseInt(bgFeatherIn.value, 10) || 0;
       rebuildProcessedArt();
-    });
-  }
-
-  const qtPlaceBtn = document.getElementById('qtPlaceBtn');
-  if (qtPlaceBtn) {
-    qtPlaceBtn.addEventListener('click', () => {
-      const email = (document.querySelector('#qtEmail')?.value || window.orderState.pendingEmail || '').trim();
-      const fileId = window.orderState.fileId || '';
-      const orderNote = window.orderState.orderNote || '';
-      if (!fileId) { alert('Upload your art first, then try again.'); return; }
-      startCheckout({ email, fileId, orderNote });
     });
   }
 
