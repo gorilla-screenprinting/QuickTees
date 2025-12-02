@@ -65,17 +65,6 @@
       </div>
     </div>
 
-
-    <!-- Placement -->
-    <div class="qt-op-field">
-      <label>Placement</label>
-      <div class="qt-op-row" role="radiogroup" aria-label="Placement">
-        <label><input type="radio" name="qtPlacement" id="qtPlacementFront" value="front" checked> Front</label>
-        <label style="margin-left: 1rem;"><input type="radio" name="qtPlacement" id="qtPlacementBack" value="back">
-          Back</label>
-      </div>
-    </div>
-
     <!-- Notes -->
     <div class="qt-op-field">
       <label for="qtNotes">Notes (optional)</label>
@@ -107,103 +96,106 @@
     <span class="qt-panel-handle__text">ORDER NOW</span>
   </button>
 
-  <div class="fitline-wrap">
-    <h1 class="fitline">
-      <span>Put it on a shirt!</span>
-    </h1>
-  </div>
+  <div class="page-shell">
+    <div class="fitline-wrap">
+      <h1 class="fitline">
+        <span>Put it on a shirt!</span>
+      </h1>
+    </div>
 
-  <div class="app">
-    <aside class="panel" aria-label="Controls">
-      <div class="field">
-        <label for="blankSelect" class="field-label fitline">1: Pick yr shirt</label>
-        <!-- BagelSelect: BLANKS (keeps your #blankSelect for app.js) -->
-        <div class="bagel-select" data-name="blank">
-          <button class="bagel-trigger" type="button" aria-haspopup="listbox" aria-expanded="false">
-            <span class="bagel-trigger__label">Choose a blank…</span>
-            <svg class="bagel-trigger__arrow" viewBox="0 0 10 6" aria-hidden="true">
-              <path d="M0 0l5 6 5-6z" fill="currentColor" />
-            </svg>
-          </button>
-          <ul class="bagel-list" role="listbox" tabindex="-1" aria-activedescendant=""></ul>
-          <select id="blankSelect" name="blank" class="bagel-native" hidden></select>
-        </div>
-      </div>
-
-      <div class="field-label fitline">2: Upload yr art</div>
-      <input id="artFile" type="file" accept="image/*,.svg" hidden>
-      <button type="button" id="artFileBtn" class="primary">Choose File</button>
-      <div id="artFileName" class="muted fitline">(No file selected)</div>
-
-
-      <div class="field">
-        <h1 class="fitline">3: Reposition it</h1>
-        <ul class="tips">
-          <li>Drag to move</li>
-          <li>Shift + drag to scale (desktop)</li>
-          <li>Pinch with two fingers to zoom (mobile)</li>
-          <li>“Center” to recenter your art</li>
-          <li>“Max it Out” to fit inside print area</li>
-        </ul>
-      </div>
-      <div class="btn-row">
-        <button id="centerBtn">Center</button>
-        <button id="fitBtn" class="primary">Max it Out</button>
-      </div>
-      <!-- BG removal controls -->
-      <div class="field">
-        <h1 class="fitline">4: Remove BKGD</h1>
-
-        <div id="bgControls" class="field">
-          <div id="bgSwatches" class="swatches"></div>
-          <div class="field"></div>
-
-          <div class="bagel-select" data-name="bgMode">
+    <div class="app">
+      <aside class="panel" aria-label="Controls">
+        <div class="field field-inline">
+          <label for="blankSelect" class="field-label fitline">1: Pick yr shirt</label>
+          <!-- BagelSelect: BLANKS (keeps your #blankSelect for app.js) -->
+          <div class="bagel-select" data-name="blank">
             <button class="bagel-trigger" type="button" aria-haspopup="listbox" aria-expanded="false">
-              <span class="bagel-trigger__label">None</span>
+              <span class="bagel-trigger__label">Choose a blank…</span>
               <svg class="bagel-trigger__arrow" viewBox="0 0 10 6" aria-hidden="true">
                 <path d="M0 0l5 6 5-6z" fill="currentColor" />
               </svg>
             </button>
-            <ul class="bagel-list" role="listbox" tabindex="-1" aria-activedescendant="">
-              <li role="option" id="opt-bg-0" data-value="none" aria-selected="true">None</li>
-              <li role="option" id="opt-bg-1" data-value="wand">Edge (Wand)</li>
-              <li role="option" id="opt-bg-2" data-value="threshold">Global (Threshold)</li>
-            </ul>
-            <select id="bgMode" name="bgMode" class="bagel-native" hidden>
-              <option value="none" selected>None</option>
-              <option value="wand">Edge (Wand)</option>
-              <option value="threshold">Global (Threshold)</option>
-            </select>
+            <ul class="bagel-list" role="listbox" tabindex="-1" aria-activedescendant=""></ul>
+            <select id="blankSelect" name="blank" class="bagel-native" hidden></select>
           </div>
-
-          <label for="bgTol" class="field-label mt-2">Tolerance</label>
-          <input id="bgTol" type="range" min="5" max="90" value="40" />
-
-          <label for="bgFeather" class="field-label mt-2">Feather (px)</label>
-          <input id="bgFeather" type="range" min="0" max="3" step="1" value="1" />
         </div>
 
+        <div class="field-label fitline">2: Upload yr art</div>
+        <input id="artFile" type="file" accept="image/*,.svg" hidden>
+        <button type="button" id="artFileBtn" class="primary">Choose File</button>
+        <div id="artFileName" class="muted fitline">(No file selected)</div>
+
         <div class="field">
-          <label class="fitline">Print dimensions:</label>
+          <label class="muted fitline">Print dimensions:</label>
           <div id="sizeReadout" class="muted">—</div>
         </div>
 
-    </aside>
+        <div class="field">
+          <h1 class="fitline">3: Reposition it</h1>
+          <ul class="tips">
+            <li>Drag to move</li>
+            <li>Shift + drag to scale (desktop)</li>
+            <li>Pinch with two fingers to zoom (mobile)</li>
+            <li>“Center” to recenter your art</li>
+            <li>“Max it Out” to fit inside print area</li>
+          </ul>
+        </div>
+        <div class="btn-row">
+          <button id="centerBtn">Center</button>
+          <button id="fitBtn" class="primary">Max it Out</button>
+        </div>
+        <!-- BG removal controls -->
+        <div class="field">
+          <h1 class="fitline">4: Remove BKGD</h1>
 
-    <main class="stage">
-      <!-- Front/Back toggle -->
-      <div class="qt-side-toggle" id="qtSideToggle" role="tablist" aria-label="Shirt side">
-        <button class="qt-side-btn" id="qtSideFront" role="tab" aria-selected="true">Front</button>
-        <button class="qt-side-btn" id="qtSideBack" role="tab" aria-selected="false">Back</button>
-      </div>
+          <div id="bgControls" class="field">
+            <div id="bgSwatches" class="swatches"></div>
+            <div class="field"></div>
+
+            <div class="bagel-select" data-name="bgMode">
+              <button class="bagel-trigger" type="button" aria-haspopup="listbox" aria-expanded="false">
+                <span class="bagel-trigger__label">None</span>
+                <svg class="bagel-trigger__arrow" viewBox="0 0 10 6" aria-hidden="true">
+                  <path d="M0 0l5 6 5-6z" fill="currentColor" />
+                </svg>
+              </button>
+              <ul class="bagel-list" role="listbox" tabindex="-1" aria-activedescendant="">
+                <li role="option" id="opt-bg-0" data-value="none" aria-selected="true">None</li>
+                <li role="option" id="opt-bg-1" data-value="wand">Edge (Wand)</li>
+                <li role="option" id="opt-bg-2" data-value="threshold">Global (Threshold)</li>
+              </ul>
+              <select id="bgMode" name="bgMode" class="bagel-native" hidden>
+                <option value="none" selected>None</option>
+                <option value="wand">Edge (Wand)</option>
+                <option value="threshold">Global (Threshold)</option>
+              </select>
+            </div>
+
+            <label for="bgTol" class="field-label mt-2">Tolerance</label>
+            <input id="bgTol" type="range" min="5" max="90" value="40" />
+
+            <label for="bgFeather" class="field-label mt-2">Feather (px)</label>
+            <input id="bgFeather" type="range" min="0" max="3" step="1" value="1" />
+          </div>
 
 
-      <canvas id="stage" aria-label="Mockup canvas"></canvas>
-      <div class="overlay">
-        <div id="printAreaGuide"></div>
-      </div>
-    </main>
+
+      </aside>
+
+      <main class="stage">
+        <!-- Front/Back toggle -->
+        <div class="qt-side-toggle" id="qtSideToggle" role="tablist" aria-label="Shirt side">
+          <button class="qt-side-btn" id="qtSideFront" role="tab" aria-selected="true">Front</button>
+          <button class="qt-side-btn" id="qtSideBack" role="tab" aria-selected="false">Back</button>
+        </div>
+
+
+        <canvas id="stage" aria-label="Mockup canvas"></canvas>
+        <div class="overlay">
+          <div id="printAreaGuide"></div>
+        </div>
+      </main>
+    </div>
   </div>
 
   <script defer src="./config/tiers.js"></script>

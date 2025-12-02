@@ -14,6 +14,8 @@
     const isOpen = () => root.hasAttribute('aria-open');
 
     function currentIndex(){
+      const hot = options.findIndex(o => o.getAttribute('aria-current') === 'true');
+      if (hot >= 0) return hot;
       const v = nat.value;
       return Math.max(0, options.findIndex(o => o.dataset.value === v));
     }
@@ -29,6 +31,7 @@
         const text = options[idx].textContent;
         lab.textContent = text;
         nat.value = v;
+        setActive(idx);
         if (fireChange) nat.dispatchEvent(new Event('change', {bubbles:true}));
       }
     }
