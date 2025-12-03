@@ -90,6 +90,14 @@ h1 {
   margin-bottom: 6px;
 }
 
+.step-card{
+  background: #e5f2f1;
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  margin-bottom: 12px;
+  border: 1px solid rgba(0,0,0,0.04);
+}
+
 #artFileName,
 #sizeReadout{
   white-space: nowrap;
@@ -179,9 +187,9 @@ h1 {
    Panel (left controls)
 ======================== */
 .panel {
-  background: var(--panel);
+  background: var(--bg);
   border-radius: var(--radius);
-  padding: var(--gap);
+  padding: 0;
   height: 100%;
   min-height: 0;
   overflow: auto;
@@ -198,6 +206,14 @@ h1 {
 
 .field.step-gap{
   margin-top: 14px;
+}
+
+.step-card{
+  background: var(--panel);
+  border-radius: var(--radius);
+  padding: 12px;
+  margin: 0 0 12px 0;
+  border: 1px solid rgba(0,0,0,0.04);
 }
 
 /* Normalize spacing inside btn rows */

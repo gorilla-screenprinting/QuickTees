@@ -13,6 +13,8 @@
   const fitBtn = document.getElementById('fitBtn');
   const sizeReadout = document.getElementById('sizeReadout');
   const bgScopeBtn = document.getElementById('bgScopeBtn');
+  const cropToggleBtn = document.getElementById('cropToggleBtn');
+  const cropResetBtn = document.getElementById('cropResetBtn');
 
   const sideFrontBtn = document.getElementById('qtSideFront');
   const sideBackBtn = document.getElementById('qtSideBack');
@@ -32,7 +34,9 @@
         tierIn: null,
         currentTier: null,
         bgEnabled: false,
-        bgMode: 'edge'
+        bgMode: 'edge',
+        crop: null,
+        cropMode: false
       };
     }
     return window.orderState.sides[side];
@@ -50,7 +54,9 @@
       art: { ...state.art },
       bgSel: BG_SELECTED || null,
       bgEnabled: BG.enabled || false,
-      bgMode: BG.mode || 'edge'
+      bgMode: BG.mode || 'edge',
+      crop: crop ? { ...crop } : null,
+      cropMode: cropMode
     });
   }
 
@@ -63,6 +69,8 @@
       BG_SELECTED = saved.bgSel || null;
       BG.enabled = !!saved.bgEnabled;
       BG.mode = saved.bgMode || 'edge';
+      crop = saved.crop ? { ...saved.crop } : null;
+      cropMode = !!saved.cropMode;
     } else {
       state.artImg = null;
       processedArt = null;
@@ -70,9 +78,12 @@
       BG_SELECTED = null;
       BG.enabled = false;
       BG.mode = 'edge';
+      crop = null;
+      cropMode = false;
     }
     updateBgButton();
     updateBgScopeButton();
+    updateCropButtons();
     if (BG.enabled && state.artImg && !processedArt) rebuildProcessedArt();
     else scheduleDraw();
   }
@@ -84,6 +95,8 @@
   const SAFETY = 40;
   const FIT_PAD = 0;
   const CLAMP_EPS_PX = 0.5;
+  const CROP_MIN = 20;
+  const HANDLE_HIT = 18;
 
   const DESIRED_W = Math.round(MAX_IN.w * PPI_HINT);
   const DESIRED_H = Math.round(MAX_IN.h * PPI_HINT);
@@ -101,6 +114,9 @@
   const BG = { enabled: false, tol: 32, feather: 1, mode: 'edge' }; // mode: 'edge' | 'global'
   let BG_SELECTED = null;
   let processedArt = null;
+  let crop = null;            // { x, y, w, h } in image px
+  let cropMode = false;
+  let cropDrag = null;
 
   // ===== App state =====
   const state = {
@@ -153,8 +169,59 @@
     bgScopeBtn.disabled = !BG.enabled;
   }
 
+  function updateCropButtons() {
+    const hasArt = !!state.artImg;
+    if (cropToggleBtn) {
+      cropToggleBtn.textContent = cropMode ? 'Done cropping' : 'Edit crop';
+      cropToggleBtn.disabled = !hasArt;
+    }
+    if (cropResetBtn) {
+      cropResetBtn.disabled = !hasArt;
+    }
+  }
+
   // ===== Helpers =====
   const area = () => (BOX_PX || PRINT);
+
+  const srcImage = () => (processedArt || state.artImg);
+
+  function fullCropRect() {
+    const src = state.artImg;
+    if (!src) return null;
+    return { x: 0, y: 0, w: src.width, h: src.height };
+  }
+
+  function clampCropRect(rect) {
+    const src = state.artImg;
+    if (!src || !rect) return fullCropRect();
+    let { x, y, w, h } = rect;
+    const maxW = src.width, maxH = src.height;
+    w = Math.max(CROP_MIN, Math.min(w, maxW));
+    h = Math.max(CROP_MIN, Math.min(h, maxH));
+    x = Math.max(0, Math.min(x, maxW - w));
+    y = Math.max(0, Math.min(y, maxH - h));
+    return { x, y, w, h };
+  }
+
+  function currentCrop() {
+    if (!state.artImg) return null;
+    if (!crop) crop = fullCropRect();
+    crop = clampCropRect(crop);
+    return crop;
+  }
+
+  function resetCrop() {
+    crop = fullCropRect();
+    scheduleDraw();
+    updateCropButtons();
+  }
+
+  function getDimsPx() {
+    const c = currentCrop();
+    if (c) return { w: c.w, h: c.h };
+    if (state.artImg) return { w: state.artImg.width, h: state.artImg.height };
+    return null;
+  }
 
   function setCanvasSize() {
     const rect = canvas.parentElement.getBoundingClientRect();
@@ -194,8 +261,10 @@
 
   function pointInArt(x, y) {
     if (!state.artImg) return false;
-    const hw = (state.artImg.width * state.art.scale) / 2;
-    const hh = (state.artImg.height * state.art.scale) / 2;
+    const dims = getDimsPx();
+    if (!dims) return false;
+    const hw = (dims.w * state.art.scale) / 2;
+    const hh = (dims.h * state.art.scale) / 2;
     return (x >= state.art.tx - hw && x <= state.art.tx + hw &&
       y >= state.art.ty - hh && y <= state.art.ty + hh);
   }
@@ -208,14 +277,15 @@
   }
 
   function enforceConstraints() {
-    if (!state.artImg) return;
-    const cap = maxScaleForPrintArea(state.artImg.width, state.artImg.height);
-    const epsScale = CLAMP_EPS_PX / state.artImg.width;
+    const dims = getDimsPx();
+    if (!state.artImg || !dims) return;
+    const cap = maxScaleForPrintArea(dims.w, dims.h);
+    const epsScale = CLAMP_EPS_PX / dims.w;
     state.art.scale = Math.min(state.art.scale, cap - epsScale);
 
     const a = area();
-    const halfW = (state.artImg.width * state.art.scale) / 2;
-    const halfH = (state.artImg.height * state.art.scale) / 2;
+    const halfW = (dims.w * state.art.scale) / 2;
+    const halfH = (dims.h * state.art.scale) / 2;
 
     const minX = a.x + halfW, maxX = a.x + a.w - halfW;
     const minY = a.y + halfH, maxY = a.y + a.h - halfH;
@@ -226,8 +296,10 @@
 
   function getArtSizeInches() {
     if (!state.artImg || !PPI_STAGE) return null;
-    const w_px = state.artImg.width * state.art.scale;
-    const h_px = state.artImg.height * state.art.scale;
+    const dims = getDimsPx();
+    if (!dims) return null;
+    const w_px = dims.w * state.art.scale;
+    const h_px = dims.h * state.art.scale;
     return { w_in: w_px / PPI_STAGE, h_in: h_px / PPI_STAGE };
   }
 
@@ -299,25 +371,55 @@
     if (state.artImg) {
       enforceConstraints();
       const src = processedArt || state.artImg;
-      const w = src.width * state.art.scale;
-      const h = src.height * state.art.scale;
+      const c = currentCrop();
+      const sx = c ? c.x : 0;
+      const sy = c ? c.y : 0;
+      const sw = c ? c.w : src.width;
+      const sh = c ? c.h : src.height;
+      const w = sw * state.art.scale;
+      const h = sh * state.art.scale;
 
       ctx.save();
       ctx.translate(state.art.tx, state.art.ty);
-      ctx.drawImage(src, -w / 2, -h / 2, w, h);
+      ctx.drawImage(src, sx, sy, sw, sh, -w / 2, -h / 2, w, h);
       ctx.restore();
+
+      if (cropMode && c) {
+        ctx.save();
+        ctx.setLineDash([6, 4]);
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = 'rgba(0,0,0,0.65)';
+        ctx.strokeRect(state.art.tx - w / 2, state.art.ty - h / 2, w, h);
+        ctx.setLineDash([]);
+        const hs = 10;
+        const handles = [
+          { x: state.art.tx - w / 2, y: state.art.ty - h / 2 },
+          { x: state.art.tx + w / 2, y: state.art.ty - h / 2 },
+          { x: state.art.tx - w / 2, y: state.art.ty + h / 2 },
+          { x: state.art.tx + w / 2, y: state.art.ty + h / 2 }
+        ];
+        ctx.fillStyle = '#fff';
+        ctx.strokeStyle = '#000';
+        handles.forEach(pt => {
+          ctx.fillRect(pt.x - hs / 2, pt.y - hs / 2, hs, hs);
+          ctx.strokeRect(pt.x - hs / 2, pt.y - hs / 2, hs, hs);
+        });
+        ctx.restore();
+      }
     }
   }
 
   // ===== Actions =====
   function placeArtTopMaxWidth() {
     if (!state.artImg) return;
-    const cap = maxScaleForPrintArea(state.artImg.width, state.artImg.height);
-    const epsScale = CLAMP_EPS_PX / state.artImg.width;
+    const dims = getDimsPx();
+    if (!dims) return;
+    const cap = maxScaleForPrintArea(dims.w, dims.h);
+    const epsScale = CLAMP_EPS_PX / dims.w;
     state.art.scale = cap - epsScale;
 
     const a = area();
-    const scaledH = state.artImg.height * state.art.scale;
+    const scaledH = dims.h * state.art.scale;
     state.art.tx = a.x + a.w / 2;
     state.art.ty = a.y + scaledH / 2;
     enforceConstraints();
@@ -505,6 +607,35 @@
     scheduleDraw();
   }
 
+  // ===== Crop helpers =====
+  function cropBoxOnStage() {
+    const dims = getDimsPx();
+    if (!state.artImg || !dims) return null;
+    const w = dims.w * state.art.scale;
+    const h = dims.h * state.art.scale;
+    return { x: state.art.tx - w / 2, y: state.art.ty - h / 2, w, h };
+  }
+
+  function hitCropHandle(pt) {
+    const box = cropBoxOnStage();
+    if (!box) return null;
+    const handles = {
+      nw: { x: box.x, y: box.y },
+      ne: { x: box.x + box.w, y: box.y },
+      sw: { x: box.x, y: box.y + box.h },
+      se: { x: box.x + box.w, y: box.y + box.h }
+    };
+    for (const [key, pos] of Object.entries(handles)) {
+      const dx = pt.x - pos.x;
+      const dy = pt.y - pos.y;
+      if (Math.hypot(dx, dy) <= HANDLE_HIT) return key;
+    }
+    if (pt.x >= box.x && pt.x <= box.x + box.w && pt.y >= box.y && pt.y <= box.y + box.h) {
+      return 'move';
+    }
+    return null;
+  }
+
   // ===== Manifest / blanks =====
   async function ensureManifest() {
     if (MANIFEST) return MANIFEST;
@@ -673,6 +804,9 @@
       setArtName(f.name);
       state.artImg = await loadImageFromFile(f);
       placeArtTopMaxWidth();
+      crop = fullCropRect();
+      cropMode = false;
+      updateCropButtons();
       const keepBg = BG.enabled;
       BG_SELECTED = pickAutoBgTarget(state.artImg);
       processedArt = null;
@@ -758,6 +892,23 @@
     updateBgScopeButton();
   }
 
+  if (cropToggleBtn) {
+    cropToggleBtn.addEventListener('click', () => {
+      if (!state.artImg) return;
+      cropMode = !cropMode;
+      updateCropButtons();
+      scheduleDraw();
+    });
+  }
+  if (cropResetBtn) {
+    cropResetBtn.addEventListener('click', () => {
+      if (!state.artImg) return;
+      resetCrop();
+      cropMode = true;
+      updateCropButtons();
+    });
+  }
+
   // ===== Pointer interactions =====
   const pointers = new Map();
   let pinchStartDist = null;
@@ -770,7 +921,21 @@
     const p = toStageXY(e);
     pointers.set(e.pointerId, p);
 
-    if (pointers.size === 1 && state.artImg && pointInArt(p.x, p.y)) {
+    if (pointers.size === 1 && state.artImg && cropMode) {
+      const hit = hitCropHandle(p);
+      if (hit) {
+        const baseCrop = currentCrop() || fullCropRect();
+        cropDrag = {
+          handle: hit,
+          startPt: p,
+          rect: baseCrop ? { ...baseCrop } : null
+        };
+        state.dragging = false;
+        return;
+      }
+    }
+
+    if (!cropMode && pointers.size === 1 && state.artImg && pointInArt(p.x, p.y)) {
       state.dragging = true;
       state.dragMode = (e.shiftKey ? 'scale' : 'move');
       state.last = p;
@@ -790,7 +955,19 @@
     const p = toStageXY(e);
     pointers.set(e.pointerId, p);
 
-    if (pointers.size === 1 && state.dragging) {
+    if (pointers.size === 1 && cropDrag && state.artImg) {
+      const rect0 = cropDrag.rect || fullCropRect();
+      let { x, y, w, h } = rect0;
+      const dx = (p.x - cropDrag.startPt.x) / state.art.scale;
+      const dy = (p.y - cropDrag.startPt.y) / state.art.scale;
+      if (cropDrag.handle === 'nw') { x = rect0.x + dx; w = rect0.w - dx; y = rect0.y + dy; h = rect0.h - dy; }
+      else if (cropDrag.handle === 'ne') { w = rect0.w + dx; y = rect0.y + dy; h = rect0.h - dy; }
+      else if (cropDrag.handle === 'sw') { x = rect0.x + dx; w = rect0.w - dx; h = rect0.h + dy; }
+      else if (cropDrag.handle === 'se') { w = rect0.w + dx; h = rect0.h + dy; }
+      else if (cropDrag.handle === 'move') { x = rect0.x + dx; y = rect0.y + dy; }
+      crop = clampCropRect({ x, y, w, h });
+      scheduleDraw();
+    } else if (pointers.size === 1 && state.dragging) {
       if (state.dragMode === 'move') {
         state.art.tx += (p.x - state.last.x);
         state.art.ty += (p.y - state.last.y);
@@ -820,6 +997,7 @@
     if (pointers.size < 2) pinchStartDist = null;
     if (pointers.size === 0) {
       state.dragging = false;
+      cropDrag = null;
       scheduleDraw();
     }
   }
@@ -832,6 +1010,7 @@
   canvas.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
 
   // ===== Boot =====
+  updateCropButtons();
   setActiveSide(window.orderState.activeSide); // sync button styles first
   setCanvasSize();
   loadShirtManifest();

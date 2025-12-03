@@ -105,53 +105,76 @@
 
     <div class="app">
       <aside class="panel" aria-label="Controls">
-        <div class="field field-inline">
-          <label for="blankSelect" class="field-label fitline">1: Pick yr shirt</label>
-          <!-- BagelSelect: BLANKS (keeps your #blankSelect for app.js) -->
-          <div class="bagel-select" data-name="blank">
-            <button class="bagel-trigger" type="button" aria-haspopup="listbox" aria-expanded="false">
-              <span class="bagel-trigger__label">Choose a blank…</span>
-              <svg class="bagel-trigger__arrow" viewBox="0 0 10 6" aria-hidden="true">
-                <path d="M0 0l5 6 5-6z" fill="currentColor" />
-              </svg>
-            </button>
-            <ul class="bagel-list" role="listbox" tabindex="-1" aria-activedescendant=""></ul>
-            <select id="blankSelect" name="blank" class="bagel-native" hidden></select>
+
+        <div class="step-card">
+          <div class="field field-inline">
+            <label for="blankSelect" class="field-label fitline">1: Pick yr shirt</label>
+            <!-- BagelSelect: BLANKS (keeps your #blankSelect for app.js) -->
+            <div class="bagel-select" data-name="blank">
+              <button class="bagel-trigger" type="button" aria-haspopup="listbox" aria-expanded="false">
+                <span class="bagel-trigger__label">Choose a blank…</span>
+                <svg class="bagel-trigger__arrow" viewBox="0 0 10 6" aria-hidden="true">
+                  <path d="M0 0l5 6 5-6z" fill="currentColor" />
+                </svg>
+              </button>
+              <ul class="bagel-list" role="listbox" tabindex="-1" aria-activedescendant=""></ul>
+              <select id="blankSelect" name="blank" class="bagel-native" hidden></select>
+            </div>
           </div>
         </div>
 
-        <div class="field-label fitline">2: Upload yr art</div>
-        <input id="artFile" type="file" accept="image/*,.svg" hidden>
-        <button type="button" id="artFileBtn" class="primary">Choose File</button>
-        <div id="artFileName" class="muted fitline">(No file selected)</div>
+        <div class="step-card">
+          <div class="field-label fitline">2: Upload yr art</div>
+          <input id="artFile" type="file" accept="image/*,.svg" hidden>
+          <button type="button" id="artFileBtn" class="primary">Choose File</button>
+          <div id="artFileName" class="muted fitline">(No file selected)</div>
 
-        <div class="field">
-          <div id="sizeReadout" class="muted">Art Size: —</div>
+          <div class="field">
+            <div id="sizeReadout" class="muted">Art Size: —</div>
+          </div>
         </div>
 
-        <div class="field">
-          <h1 class="fitline">3: Reposition it</h1>
-          <ul class="tips">
-            <li>Drag to move</li>
-            <li>Shift + drag to scale (desktop)</li>
-            <li>Pinch with two fingers to zoom (mobile)</li>
-            <li>“Center” to recenter your art</li>
-            <li>“Max it Out” to fit inside print area</li>
-          </ul>
+        <div class="step-card">
+          <div class="field">
+            <h1 class="fitline">3: Need to crop it?</h1>
+            <div class="btn-row">
+              <button type="button" id="cropToggleBtn">Edit crop</button>
+              <button type="button" id="cropResetBtn" class="primary">Reset crop</button>
+            </div>
+            <div class="fitline muted" style="margin-top:.35rem;">Drag corners to trim empty space.
+            </div>
+          </div>
         </div>
-        <div class="btn-row">
-          <button id="centerBtn">Center</button>
-          <button id="fitBtn" class="primary">Max it Out</button>
-        </div>
-        <!-- BG removal controls -->
-        <div class="field step-gap">
-          <h1 class="fitline">4: Remove BKGD</h1>
+
+
+        <div class="step-card">
+          <div class="field">
+            <h1 class="fitline">4: Where do you want it?</h1>
+            <ul class="tips">
+              <li>Drag to move</li>
+              <li>Shift + drag to scale (desktop)</li>
+              <li>Pinch with two fingers to zoom (mobile)</li>
+              <li>“Center” to recenter your art</li>
+              <li>“Max it Out” to fit inside print area</li>
+            </ul>
+          </div>
           <div class="btn-row">
-            <button type="button" id="bgRemoveBtn" class="bg-toggle">bkgd</button>
-            <button type="button" id="bgScopeBtn" class="bg-toggle">Edge only</button>
+            <button id="centerBtn">Center</button>
+            <button id="fitBtn" class="primary">Max it Out</button>
           </div>
-          <div class="muted fitline" style="margin-top:.35rem;">Preview only — original upload stays intact.</div>
         </div>
+
+        <div class="step-card">
+          <div class="field">
+            <h1 class="fitline">5: Remove the Background?</h1>
+            <div class="btn-row">
+              <button type="button" id="bgRemoveBtn" class="bg-toggle">bkgd</button>
+              <button type="button" id="bgScopeBtn" class="bg-toggle">Edge only</button>
+            </div>
+          </div>
+        </div>
+
+
 
       </aside>
 
@@ -161,8 +184,6 @@
           <button class="qt-side-btn" id="qtSideFront" role="tab" aria-selected="true">Front</button>
           <button class="qt-side-btn" id="qtSideBack" role="tab" aria-selected="false">Back</button>
         </div>
-
-
         <canvas id="stage" aria-label="Mockup canvas"></canvas>
         <div class="overlay">
           <div id="printAreaGuide"></div>
