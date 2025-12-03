@@ -130,6 +130,13 @@
     });
   }
 
+  function refitFitline(el) {
+    if (!el) return;
+    if (typeof window !== 'undefined' && typeof window.fitlineOne === 'function') {
+      window.fitlineOne(el);
+    }
+  }
+
   function updateBgButton() {
     if (!bgRemoveBtn) return;
     bgRemoveBtn.textContent = BG.enabled ? 'Restore' : 'Remove';
@@ -226,10 +233,19 @@
 
   function updateReadout() {
     if (!sizeReadout) return;
+    const setSizeText = (txt) => {
+      sizeReadout.textContent = `Art Size: ${txt}`;
+      refitFitline(sizeReadout);
+    };
+
     const s = getArtSizeInches();
     window.orderState.readoutIn = s || null;
 
-    sizeReadout.textContent = s ? `${s.w_in.toFixed(2)}" W × ${s.h_in.toFixed(2)}" H` : '—';
+    if (s) {
+      setSizeText(`${s.w_in.toFixed(2)}" W × ${s.h_in.toFixed(2)}" H`);
+    } else {
+      setSizeText('—');
+    }
 
     if (s && typeof window.deriveDtfTier === 'function') {
       window.orderState.currentTier = window.deriveDtfTier(s); // { tierIn, key, tooLarge }
@@ -242,7 +258,7 @@
 
     const placeBtn = document.getElementById('qtPlaceBtn');
     if (window.orderState?.currentTier?.tooLarge) {
-      sizeReadout.textContent = `Too large for DTF — max 16"`;
+      setSizeText(`Too large for DTF — max 16"`);
       sizeReadout.classList.add('error');
       if (placeBtn) placeBtn.disabled = true;
     } else {
@@ -639,31 +655,37 @@
   // ===== Events =====
   if (artBtn && artInput) artBtn.addEventListener('click', () => artInput.click());
 
-      if (artInput) {
-        artInput.addEventListener('change', async () => {
-          const f = artInput.files && artInput.files[0];
-          if (!f) {
-            if (artNameEl) artNameEl.textContent = '(No file selected)';
-            return;
-          }
+  function setArtName(msg) {
+    if (!artNameEl) return;
+    artNameEl.textContent = msg;
+    refitFitline(artNameEl);
+  }
 
-          // local preview
-          if (artNameEl) artNameEl.textContent = f.name;
-          state.artImg = await loadImageFromFile(f);
-          placeArtTopMaxWidth();
-          const keepBg = BG.enabled;
-          BG_SELECTED = pickAutoBgTarget(state.artImg);
-          processedArt = null;
-          BG.enabled = keepBg && !!BG_SELECTED;
-          updateBgButton();
-          if (BG.enabled) rebuildProcessedArt();
-          else scheduleDraw();
-          snapshotSide(window.orderState.activeSide || 'front');
+  if (artInput) {
+    artInput.addEventListener('change', async () => {
+      const f = artInput.files && artInput.files[0];
+      if (!f) {
+        setArtName('(No file selected)');
+        return;
+      }
+
+      // local preview
+      setArtName(f.name);
+      state.artImg = await loadImageFromFile(f);
+      placeArtTopMaxWidth();
+      const keepBg = BG.enabled;
+      BG_SELECTED = pickAutoBgTarget(state.artImg);
+      processedArt = null;
+      BG.enabled = keepBg && !!BG_SELECTED;
+      updateBgButton();
+      if (BG.enabled) rebuildProcessedArt();
+      else scheduleDraw();
+      snapshotSide(window.orderState.activeSide || 'front');
 
       // upload to Drive
       try {
         if (artBtn) artBtn.disabled = true;
-        if (artNameEl) artNameEl.textContent = `Uploading: ${f.name}…`;
+        setArtName(`Uploading: ${f.name}…`);
 
         const meta = {
           customer_email: document.querySelector('#qtEmail')?.value || '',
@@ -692,13 +714,10 @@
         window.orderState.orderNote = meta.order_note || '';
         window.orderState.pendingEmail = document.querySelector('#qtEmail')?.value || '';
 
-        if (artNameEl) {
-          const safe = f.name.replace(/[<>&]/g, s => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[s]));
-          artNameEl.innerHTML = `${safe} ✓ uploaded — <a href="${result.webViewLink}" target="_blank" rel="noopener">Open in Drive</a>`;
-        }
+        setArtName(`${f.name} ✓ uploaded`);
       } catch (err) {
         console.error(err);
-        if (artNameEl) artNameEl.textContent = `Upload failed: ${err.message}`;
+        setArtName(`Upload failed: ${err.message}`);
         window.orderState.fileId = null;
         window.orderState.orderNote = '';
       } finally {

@@ -57,6 +57,12 @@
     document.querySelectorAll('.fitline').forEach(fitOne);
   }
 
+  // Expose a manual helper so callers can fit a single element without firing resize
+  if (typeof window !== 'undefined') {
+    window.fitlineOne = fitOne;
+    window.fitlineAll = fitAll;
+  }
+
   // Re-run when the layout or fonts change
   let ticking = false;
   const onResize = () => {

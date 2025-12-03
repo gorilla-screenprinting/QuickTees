@@ -2,7 +2,7 @@
  {
     "file": "Black_T_front.png",
     "sku": "tee-heavy-black",
-    "label": "Premium Black Cotton Tee",
+    "label": "Premium Black Cotton T",
     "ref": { "px": 1080, "in": 35 },
     "box_in": { "x": 11.65, "y": 8, "w": 11.7, "h": 16.5 }
   },
@@ -16,7 +16,7 @@
   {
     "file": "White_T_front.png",
     "sku": "tee-heavy-white",
-    "label": "Premium White Cotton Tee",
+    "label": "Premium White Cotton T",
     "ref": { "px": 1080, "in": 35 },
     "box_in": { "x": 11.65, "y": 8, "w": 11.7, "h": 16.5 }
   },
@@ -30,7 +30,7 @@
     {
     "file": "Black_T_front.png",
     "sku": "tee-light-black",
-    "label": "Value Black Cotton Tee",
+    "label": "Value Black Cotton T",
     "ref": { "px": 1080, "in": 35 },
     "box_in": { "x": 11.65, "y": 8, "w": 11.7, "h": 16.5 }
   },
@@ -44,7 +44,7 @@
   {
     "file": "White_T_front.png",
     "sku": "tee-light-white",
-    "label": "Value White Cotton Tee",
+    "label": "Value White Cotton T",
     "ref": { "px": 1080, "in": 35 },
     "box_in": { "x": 11.65, "y": 8, "w": 11.7, "h": 16.5 }
   },

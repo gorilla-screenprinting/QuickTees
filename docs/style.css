@@ -87,7 +87,20 @@ h1 {
 
 .field-label {
   display: block;
+  margin-bottom: 6px;
 }
+
+#artFileName,
+#sizeReadout{
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#artFileBtn { margin-top: 6px; }
+#artFileName { margin-top: 4px; }
+
+.bagel-select { margin-top: 6px; }
 
 .mt-2 {
   margin-top: 8px;
@@ -134,7 +147,7 @@ h1 {
 
 .app {
   display: grid;
-  grid-template-columns: clamp(320px, 35vw, 440px) 1fr;
+  grid-template-columns: clamp(320px, 36vw, 440px) 1fr;
   grid-template-rows: minmax(0, 1fr);
   gap: var(--gap);
   align-items: stretch;
@@ -175,12 +188,31 @@ h1 {
 }
 
 .panel :where(h1, h2,) {
-  margin-bottom: 12px;
+  margin-bottom: 6px;
   color: var(--ink);
 }
 
 .field {
   margin-bottom: 16px;
+}
+
+.field.step-gap{
+  margin-top: 14px;
+}
+
+/* Normalize spacing inside btn rows */
+.btn-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.btn-row>button {
+  flex: 1 1 0;
+  width: auto;
+  display: flex;
+  justify-content: center;
+  margin: 0; /* override global button margin to keep consistent spacing */
 }
 
 /* ========================
@@ -204,7 +236,7 @@ h1 {
 button:not(.qt-panel-handle):not(.bagel-trigger):not(.swatch) {
   display: block;
   width: 100%;
-  margin: 6px 0;
+  margin: 0;
   padding: .45em 0;
   border: none;
   border-radius: 10px;
