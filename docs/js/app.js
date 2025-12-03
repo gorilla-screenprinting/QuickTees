@@ -29,7 +29,8 @@
         designLabel: '',
         readoutIn: null,
         tierIn: null,
-        currentTier: null
+        currentTier: null,
+        bgEnabled: false
       };
     }
     return window.orderState.sides[side];
@@ -45,7 +46,8 @@
       artImg: state.artImg || null,
       processedArt: processedArt || null,
       art: { ...state.art },
-      bgSel: BG_SELECTED || null
+      bgSel: BG_SELECTED || null,
+      bgEnabled: BG.enabled || false
     });
   }
 
@@ -56,13 +58,17 @@
       processedArt = saved.processedArt || null;
       state.art = saved.art ? { ...saved.art } : defaultArtPose();
       BG_SELECTED = saved.bgSel || null;
+      BG.enabled = !!saved.bgEnabled;
     } else {
       state.artImg = null;
       processedArt = null;
       state.art = defaultArtPose();
       BG_SELECTED = null;
+      BG.enabled = false;
     }
-    scheduleDraw();
+    updateBgButton();
+    if (BG.enabled && state.artImg && !processedArt) rebuildProcessedArt();
+    else scheduleDraw();
   }
 
   // ===== Constants =====
@@ -84,12 +90,9 @@
   PRINT.y = Math.max(SAFETY, Math.round((STAGE.h - PRINT.h) / 2 - STAGE.h * 0.06));
 
   // ===== BG removal state =====
-  const bgSwatches = document.getElementById('bgSwatches');
-  const bgModeSel = document.getElementById('bgMode');
-  const bgTolInput = document.getElementById('bgTol');
-  const bgFeatherIn = document.getElementById('bgFeather');
+  const bgRemoveBtn = document.getElementById('bgRemoveBtn');
 
-  const BG = { mode: 'none', tol: 40, feather: 1 };
+  const BG = { enabled: false, tol: 32, feather: 1 };
   let BG_SELECTED = null;
   let processedArt = null;
 
@@ -119,6 +122,11 @@
       draw();
       updateReadout();
     });
+  }
+
+  function updateBgButton() {
+    if (!bgRemoveBtn) return;
+    bgRemoveBtn.textContent = BG.enabled ? 'Restore background' : 'Remove white background';
   }
 
   // ===== Helpers =====
@@ -327,25 +335,12 @@
     return groups;
   }
 
-  function renderSwatches(groups) {
-    if (!bgSwatches) return;
-    bgSwatches.innerHTML = '';
-    BG_SELECTED = null;
-
-    groups.forEach((g, idx) => {
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'swatch';
-      btn.title = `Corner color ${idx + 1}`;
-      btn.style.background = `rgb(${g.rgb[0]},${g.rgb[1]},${g.rgb[2]})`;
-      btn.addEventListener('click', () => {
-        [...bgSwatches.children].forEach(el => el.classList.remove('selected'));
-        btn.classList.add('selected');
-        BG_SELECTED = g;
-        rebuildProcessedArt();
-      });
-      bgSwatches.appendChild(btn);
-    });
+  function pickAutoBgTarget(img) {
+    if (!img) return null;
+    const groups = dedupeColors(sampleCornerColors(img), 12);
+    if (!groups.length) return null;
+    const brightness = (rgb) => rgb[0] + rgb[1] + rgb[2];
+    return groups.reduce((best, g) => brightness(g.rgb) > brightness(best.rgb) ? g : best, groups[0]);
   }
 
   function applyMaskToImage(pixels, mask) {
@@ -401,9 +396,20 @@
     }
   }
 
-  async function rebuildProcessedArt() {
+  function makeMaskThresholdTarget(pixels, w, h, tol, outMask, targetRGB) {
+    const tol2 = Math.pow((tol / 100) * 255, 2);
+    const [tr, tg, tb] = targetRGB;
+    for (let i = 0, j = 0; i < pixels.length; i += 4, j++) {
+      const r = pixels[i], g = pixels[i + 1], b = pixels[i + 2];
+      const d2 = (r - tr) ** 2 + (g - tg) ** 2 + (b - tb) ** 2;
+      outMask[j] = (d2 < tol2) ? 0 : 255;
+    }
+  }
+
+  function rebuildProcessedArt() {
     processedArt = null;
-    if (!state.artImg || BG.mode === 'none') { scheduleDraw(); return; }
+    if (!state.artImg || !BG.enabled) { scheduleDraw(); return; }
+    if (!BG_SELECTED) BG_SELECTED = pickAutoBgTarget(state.artImg);
     if (!BG_SELECTED) { scheduleDraw(); return; }
 
     const src = state.artImg;
@@ -417,11 +423,7 @@
     const imgData = cx.getImageData(0, 0, w, h);
     const mask = new Uint8ClampedArray(w * h);
 
-    if (BG.mode === 'threshold') {
-      makeMaskThresholdTarget(imgData.data, w, h, BG.tol, mask, BG_SELECTED.rgb);
-    } else {
-      makeMaskWandSeeds(imgData.data, w, h, BG.tol, mask, BG_SELECTED);
-    }
+    makeMaskThresholdTarget(imgData.data, w, h, BG.tol, mask, BG_SELECTED.rgb);
 
     erodeMask(mask, w, h, 1);
     if (BG.feather > 0) blurMask(mask, w, h, BG.feather);
@@ -583,23 +585,26 @@
   // ===== Events =====
   if (artBtn && artInput) artBtn.addEventListener('click', () => artInput.click());
 
-  if (artInput) {
-    artInput.addEventListener('change', async () => {
-      const f = artInput.files && artInput.files[0];
-      if (!f) {
-        if (artNameEl) artNameEl.textContent = '(No file selected)';
-        return;
-      }
+      if (artInput) {
+        artInput.addEventListener('change', async () => {
+          const f = artInput.files && artInput.files[0];
+          if (!f) {
+            if (artNameEl) artNameEl.textContent = '(No file selected)';
+            return;
+          }
 
-      // local preview
-      if (artNameEl) artNameEl.textContent = f.name;
-      state.artImg = await loadImageFromFile(f);
-      placeArtTopMaxWidth();
-      const sampled = sampleCornerColors(state.artImg);
-      const groups = dedupeColors(sampled, 12);
-      renderSwatches(groups);
-      rebuildProcessedArt();
-      snapshotSide(window.orderState.activeSide || 'front');
+          // local preview
+          if (artNameEl) artNameEl.textContent = f.name;
+          state.artImg = await loadImageFromFile(f);
+          placeArtTopMaxWidth();
+          const keepBg = BG.enabled;
+          BG_SELECTED = pickAutoBgTarget(state.artImg);
+          processedArt = null;
+          BG.enabled = keepBg && !!BG_SELECTED;
+          updateBgButton();
+          if (BG.enabled) rebuildProcessedArt();
+          else scheduleDraw();
+          snapshotSide(window.orderState.activeSide || 'front');
 
       // upload to Drive
       try {
@@ -660,23 +665,15 @@
   if (centerBtn) centerBtn.addEventListener('click', centerArt);
   if (fitBtn) fitBtn.addEventListener('click', fitArtToMaxArea);
 
-  if (bgModeSel) {
-    bgModeSel.addEventListener('change', () => {
-      BG.mode = bgModeSel.value;
+  if (bgRemoveBtn) {
+    bgRemoveBtn.addEventListener('click', () => {
+      if (!state.artImg) return;
+      BG.enabled = !BG.enabled;
+      if (BG.enabled && !BG_SELECTED) BG_SELECTED = pickAutoBgTarget(state.artImg);
+      updateBgButton();
       rebuildProcessedArt();
     });
-  }
-  if (bgTolInput) {
-    bgTolInput.addEventListener('input', () => {
-      BG.tol = parseInt(bgTolInput.value, 10) || 40;
-      rebuildProcessedArt();
-    });
-  }
-  if (bgFeatherIn) {
-    bgFeatherIn.addEventListener('input', () => {
-      BG.feather = parseInt(bgFeatherIn.value, 10) || 0;
-      rebuildProcessedArt();
-    });
+    updateBgButton();
   }
 
   // ===== Pointer interactions =====

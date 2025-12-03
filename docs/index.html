@@ -147,38 +147,9 @@
         <!-- BG removal controls -->
         <div class="field">
           <h1 class="fitline">4: Remove BKGD</h1>
-
-          <div id="bgControls" class="field">
-            <div id="bgSwatches" class="swatches"></div>
-            <div class="field"></div>
-
-            <div class="bagel-select" data-name="bgMode">
-              <button class="bagel-trigger" type="button" aria-haspopup="listbox" aria-expanded="false">
-                <span class="bagel-trigger__label">None</span>
-                <svg class="bagel-trigger__arrow" viewBox="0 0 10 6" aria-hidden="true">
-                  <path d="M0 0l5 6 5-6z" fill="currentColor" />
-                </svg>
-              </button>
-              <ul class="bagel-list" role="listbox" tabindex="-1" aria-activedescendant="">
-                <li role="option" id="opt-bg-0" data-value="none" aria-selected="true">None</li>
-                <li role="option" id="opt-bg-1" data-value="wand">Edge (Wand)</li>
-                <li role="option" id="opt-bg-2" data-value="threshold">Global (Threshold)</li>
-              </ul>
-              <select id="bgMode" name="bgMode" class="bagel-native" hidden>
-                <option value="none" selected>None</option>
-                <option value="wand">Edge (Wand)</option>
-                <option value="threshold">Global (Threshold)</option>
-              </select>
-            </div>
-
-            <label for="bgTol" class="field-label mt-2">Tolerance</label>
-            <input id="bgTol" type="range" min="5" max="90" value="40" />
-
-            <label for="bgFeather" class="field-label mt-2">Feather (px)</label>
-            <input id="bgFeather" type="range" min="0" max="3" step="1" value="1" />
-          </div>
-
-
+          <button type="button" id="bgRemoveBtn" class="primary">Remove white background</button>
+          <div class="muted fitline" style="margin-top:.35rem;">Preview only — original upload stays intact.</div>
+        </div>
 
       </aside>
 
@@ -201,7 +172,6 @@
   <script defer src="./config/tiers.js"></script>
   <script defer src="./js/bagel-select.js"></script>
   <script defer src="./js/fitline.js"></script>
-  <script defer src="./js/rmv-bckd.js"></script>
   <script defer src="./js/app.js"></script>
   <script defer src="./js/order-panel-shell.js"></script>
   <script defer src="./js/order-panel.js"></script>
