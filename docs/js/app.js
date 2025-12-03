@@ -369,7 +369,7 @@
 
     // Art
     if (state.artImg) {
-      enforceConstraints();
+      if (!cropDrag) enforceConstraints();
       const src = processedArt || state.artImg;
       const c = currentCrop();
       const sx = c ? c.x : 0;
@@ -616,6 +616,17 @@
     return { x: state.art.tx - w / 2, y: state.art.ty - h / 2, w, h };
   }
 
+  function imgPointToStage(imgX, imgY, rect, scale, tx, ty) {
+    const w = rect.w * scale;
+    const h = rect.h * scale;
+    const ox = tx - w / 2;
+    const oy = ty - h / 2;
+    return {
+      x: ox + (imgX - rect.x) * scale,
+      y: oy + (imgY - rect.y) * scale
+    };
+  }
+
   function hitCropHandle(pt) {
     const box = cropBoxOnStage();
     if (!box) return null;
@@ -629,9 +640,6 @@
       const dx = pt.x - pos.x;
       const dy = pt.y - pos.y;
       if (Math.hypot(dx, dy) <= HANDLE_HIT) return key;
-    }
-    if (pt.x >= box.x && pt.x <= box.x + box.w && pt.y >= box.y && pt.y <= box.y + box.h) {
-      return 'move';
     }
     return null;
   }
@@ -925,10 +933,20 @@
       const hit = hitCropHandle(p);
       if (hit) {
         const baseCrop = currentCrop() || fullCropRect();
+        const anchorImg = (() => {
+          const r = baseCrop;
+          if (hit === 'nw') return { x: r.x + r.w, y: r.y + r.h };
+          if (hit === 'ne') return { x: r.x, y: r.y + r.h };
+          if (hit === 'sw') return { x: r.x + r.w, y: r.y };
+          return { x: r.x, y: r.y }; // se
+        })();
+        const anchorStage = imgPointToStage(anchorImg.x, anchorImg.y, baseCrop, state.art.scale, state.art.tx, state.art.ty);
         cropDrag = {
           handle: hit,
           startPt: p,
-          rect: baseCrop ? { ...baseCrop } : null
+          rect: baseCrop ? { ...baseCrop } : null,
+          anchorImg,
+          anchorStage
         };
         state.dragging = false;
         return;
@@ -957,15 +975,48 @@
 
     if (pointers.size === 1 && cropDrag && state.artImg) {
       const rect0 = cropDrag.rect || fullCropRect();
-      let { x, y, w, h } = rect0;
       const dx = (p.x - cropDrag.startPt.x) / state.art.scale;
       const dy = (p.y - cropDrag.startPt.y) / state.art.scale;
-      if (cropDrag.handle === 'nw') { x = rect0.x + dx; w = rect0.w - dx; y = rect0.y + dy; h = rect0.h - dy; }
-      else if (cropDrag.handle === 'ne') { w = rect0.w + dx; y = rect0.y + dy; h = rect0.h - dy; }
-      else if (cropDrag.handle === 'sw') { x = rect0.x + dx; w = rect0.w - dx; h = rect0.h + dy; }
-      else if (cropDrag.handle === 'se') { w = rect0.w + dx; h = rect0.h + dy; }
-      else if (cropDrag.handle === 'move') { x = rect0.x + dx; y = rect0.y + dy; }
+      const imgW = state.artImg.width, imgH = state.artImg.height;
+
+      let x = rect0.x, y = rect0.y, w = rect0.w, h = rect0.h;
+
+      if (cropDrag.handle === 'nw') {
+        const anchorX = rect0.x + rect0.w, anchorY = rect0.y + rect0.h;
+        x = Math.max(0, Math.min(anchorX - CROP_MIN, rect0.x + dx));
+        y = Math.max(0, Math.min(anchorY - CROP_MIN, rect0.y + dy));
+        w = anchorX - x;
+        h = anchorY - y;
+      } else if (cropDrag.handle === 'ne') {
+        const anchorX = rect0.x, anchorY = rect0.y + rect0.h;
+        y = Math.max(0, Math.min(anchorY - CROP_MIN, rect0.y + dy));
+        w = Math.max(CROP_MIN, Math.min(imgW - anchorX, rect0.w + dx));
+        h = anchorY - y;
+        x = anchorX;
+      } else if (cropDrag.handle === 'sw') {
+        const anchorX = rect0.x + rect0.w, anchorY = rect0.y;
+        x = Math.max(0, Math.min(anchorX - CROP_MIN, rect0.x + dx));
+        w = anchorX - x;
+        h = Math.max(CROP_MIN, Math.min(imgH - anchorY, rect0.h + dy));
+        y = anchorY;
+      } else if (cropDrag.handle === 'se') {
+        w = Math.max(CROP_MIN, Math.min(imgW - rect0.x, rect0.w + dx));
+        h = Math.max(CROP_MIN, Math.min(imgH - rect0.y, rect0.h + dy));
+        x = rect0.x; y = rect0.y;
+      }
+
+      // Clamp to image bounds/min
       crop = clampCropRect({ x, y, w, h });
+
+      // Reposition art so the anchor point stays in the same stage position
+      if (cropDrag.anchorImg && cropDrag.anchorStage) {
+        const a = cropDrag.anchorStage;
+        const r = crop;
+        const scale = state.art.scale;
+        state.art.tx = a.x - (cropDrag.anchorImg.x - r.x) * scale + (r.w * scale) / 2;
+        state.art.ty = a.y - (cropDrag.anchorImg.y - r.y) * scale + (r.h * scale) / 2;
+      }
+
       scheduleDraw();
     } else if (pointers.size === 1 && state.dragging) {
       if (state.dragMode === 'move') {
@@ -998,6 +1049,7 @@
     if (pointers.size === 0) {
       state.dragging = false;
       cropDrag = null;
+      enforceConstraints();
       scheduleDraw();
     }
   }
