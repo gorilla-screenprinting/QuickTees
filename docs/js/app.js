@@ -12,6 +12,7 @@
   const centerBtn = document.getElementById('centerBtn');
   const fitBtn = document.getElementById('fitBtn');
   const sizeReadout = document.getElementById('sizeReadout');
+  const bgScopeBtn = document.getElementById('bgScopeBtn');
 
   const sideFrontBtn = document.getElementById('qtSideFront');
   const sideBackBtn = document.getElementById('qtSideBack');
@@ -30,7 +31,8 @@
         readoutIn: null,
         tierIn: null,
         currentTier: null,
-        bgEnabled: false
+        bgEnabled: false,
+        bgMode: 'edge'
       };
     }
     return window.orderState.sides[side];
@@ -47,7 +49,8 @@
       processedArt: processedArt || null,
       art: { ...state.art },
       bgSel: BG_SELECTED || null,
-      bgEnabled: BG.enabled || false
+      bgEnabled: BG.enabled || false,
+      bgMode: BG.mode || 'edge'
     });
   }
 
@@ -59,14 +62,17 @@
       state.art = saved.art ? { ...saved.art } : defaultArtPose();
       BG_SELECTED = saved.bgSel || null;
       BG.enabled = !!saved.bgEnabled;
+      BG.mode = saved.bgMode || 'edge';
     } else {
       state.artImg = null;
       processedArt = null;
       state.art = defaultArtPose();
       BG_SELECTED = null;
       BG.enabled = false;
+      BG.mode = 'edge';
     }
     updateBgButton();
+    updateBgScopeButton();
     if (BG.enabled && state.artImg && !processedArt) rebuildProcessedArt();
     else scheduleDraw();
   }
@@ -92,7 +98,7 @@
   // ===== BG removal state =====
   const bgRemoveBtn = document.getElementById('bgRemoveBtn');
 
-  const BG = { enabled: false, tol: 32, feather: 1 };
+  const BG = { enabled: false, tol: 32, feather: 1, mode: 'edge' }; // mode: 'edge' | 'global'
   let BG_SELECTED = null;
   let processedArt = null;
 
@@ -126,7 +132,18 @@
 
   function updateBgButton() {
     if (!bgRemoveBtn) return;
-    bgRemoveBtn.textContent = BG.enabled ? 'Restore background' : 'Remove white background';
+    bgRemoveBtn.textContent = BG.enabled ? 'Restore' : 'Remove';
+    bgRemoveBtn.dataset.active = BG.enabled ? 'true' : 'false';
+  }
+
+  function updateBgScopeButton() {
+    if (!bgScopeBtn) return;
+    bgScopeBtn.textContent = BG.mode === 'edge' ? 'Edge only' : 'Everywhere';
+    bgScopeBtn.title = (BG.mode === 'edge')
+      ? 'Remove background only from edges (keeps interior whites)'
+      : 'Remove matching white everywhere (may remove interior whites)';
+    bgScopeBtn.dataset.active = BG.enabled ? 'true' : 'false';
+    bgScopeBtn.disabled = !BG.enabled;
   }
 
   // ===== Helpers =====
@@ -406,6 +423,39 @@
     }
   }
 
+  function makeMaskWandSeeds(pixels, w, h, tol, outMask, target) {
+    outMask.fill(255);
+    const tol2 = Math.pow((tol / 100) * 255, 2);
+    const visited = new Uint8Array(w * h);
+    const q = [];
+    const idxOf = { tl: 0, tr: w - 1, bl: (h - 1) * w, br: w * h - 1 };
+    const [tr, tg, tb] = target.rgb;
+
+    target.corners.forEach(c => {
+      const idx = idxOf[c];
+      if (idx != null) q.push(idx);
+    });
+
+    while (q.length) {
+      const idx = q.pop();
+      if (visited[idx]) continue;
+      visited[idx] = 1;
+
+      const i4 = idx * 4;
+      const r = pixels[i4], g = pixels[i4 + 1], b = pixels[i4 + 2];
+      const d2 = (r - tr) ** 2 + (g - tg) ** 2 + (b - tb) ** 2;
+      if (d2 >= tol2) continue;
+
+      outMask[idx] = 0;
+
+      const x = idx % w, y = (idx / w) | 0;
+      if (x > 0) q.push(idx - 1);
+      if (x < w - 1) q.push(idx + 1);
+      if (y > 0) q.push(idx - w);
+      if (y < h - 1) q.push(idx + w);
+    }
+  }
+
   function rebuildProcessedArt() {
     processedArt = null;
     if (!state.artImg || !BG.enabled) { scheduleDraw(); return; }
@@ -423,7 +473,11 @@
     const imgData = cx.getImageData(0, 0, w, h);
     const mask = new Uint8ClampedArray(w * h);
 
-    makeMaskThresholdTarget(imgData.data, w, h, BG.tol, mask, BG_SELECTED.rgb);
+    if (BG.mode === 'edge') {
+      makeMaskWandSeeds(imgData.data, w, h, BG.tol, mask, BG_SELECTED);
+    } else {
+      makeMaskThresholdTarget(imgData.data, w, h, BG.tol, mask, BG_SELECTED.rgb);
+    }
 
     erodeMask(mask, w, h, 1);
     if (BG.feather > 0) blurMask(mask, w, h, BG.feather);
@@ -671,9 +725,18 @@
       BG.enabled = !BG.enabled;
       if (BG.enabled && !BG_SELECTED) BG_SELECTED = pickAutoBgTarget(state.artImg);
       updateBgButton();
+      updateBgScopeButton();
       rebuildProcessedArt();
     });
     updateBgButton();
+  }
+  if (bgScopeBtn) {
+    bgScopeBtn.addEventListener('click', () => {
+      BG.mode = (BG.mode === 'edge') ? 'global' : 'edge';
+      updateBgScopeButton();
+      if (BG.enabled) rebuildProcessedArt();
+    });
+    updateBgScopeButton();
   }
 
   // ===== Pointer interactions =====
