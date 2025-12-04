@@ -19,6 +19,22 @@
 
   const fmt = (n) => (Number.isFinite(n) ? n : 0).toLocaleString(undefined, { style: 'currency', currency: 'USD' });
 
+  // Live pricing data (fetched once)
+  let PRICES = null; // { garments: { sku:{unit_amount,currency} }, dtf:{ key:{unit_amount,currency} } }
+
+  async function loadPrices() {
+    if (PRICES) return PRICES;
+    try {
+      const res = await fetch('/.netlify/functions/get-prices', { cache: 'no-cache' });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      PRICES = await res.json();
+    } catch (err) {
+      console.error('Price load failed', err);
+      PRICES = null;
+    }
+    return PRICES;
+  }
+
   // Client-side shipping mirror (uses window.QT_SHIPPING if you inject one later)
   let SHIPPING_CLIENT = {
     model: 'count',
@@ -40,6 +56,72 @@
     return b ? (b.amount_cents | 0) : 0;
   }
 
+  function sumSizeInputs() {
+    const ids = [
+      ['XS','qtSzXS'],
+      ['SM','qtSzSM'],
+      ['MD','qtSzMD'],
+      ['LG','qtSzLG'],
+      ['XL','qtSzXL'],
+      ['2X','qtSz2X'],
+      ['3X','qtSz3X'],
+    ];
+    let total = 0;
+    ids.forEach(([, id]) => {
+      const raw = (document.getElementById(id)?.value || '').replace(/\D+/g, '');
+      const v = parseInt(raw, 10) || 0;
+      total += Math.max(0, v);
+    });
+    return total;
+  }
+
+  function deriveTierForSide(sideKey) {
+    const sides = window.orderState?.sides || {};
+    const slot = sides[sideKey] || {};
+    return slot.tierIn ?? slot.currentTier?.tierIn ?? window.orderState?.currentTier?.tierIn ?? null;
+  }
+
+  function deriveSidePriceCents(sideKey) {
+    if (!PRICES || !PRICES.dtf) return 0;
+    const tier = deriveTierForSide(sideKey);
+    if (!tier) return 0;
+    const key = `dtf-${tier}-${sideKey}`;
+    const price = PRICES.dtf[key];
+    return price ? (price.unit_amount | 0) : 0;
+  }
+
+  function deriveGarmentPriceCents() {
+    if (!PRICES || !PRICES.garments) return 0;
+    const sku = window.orderState?.blankSku || '';
+    const p = PRICES.garments[sku];
+    return p ? (p.unit_amount | 0) : 0;
+  }
+
+  function updatePricePreview() {
+    const qty = sumSizeInputs();
+    if (!el.sub || !el.ship || !el.total) return;
+
+    if (!qty || !PRICES) {
+      el.sub.textContent = '$0.00';
+      el.ship.textContent = '$0.00';
+      el.total.textContent = '$0.00';
+      return;
+    }
+
+    const garmentCents = deriveGarmentPriceCents();
+    const dtfFrontCents = deriveSidePriceCents('front');
+    const dtfBackCents = deriveSidePriceCents('back');
+
+    const perUnitCents = garmentCents + dtfFrontCents + dtfBackCents;
+    const subtotalCents = perUnitCents * qty;
+    const shippingCents = pickShipCentsByCount(qty);
+    const totalCents = subtotalCents + shippingCents;
+
+    el.sub.textContent = fmt(subtotalCents / 100);
+    el.ship.textContent = fmt(shippingCents / 100);
+    el.total.textContent = fmt(totalCents / 100);
+  }
+
   // Load shipping table from server (same file used by the backend)
   fetch('/.netlify/functions/shipping-config')
     .then(r => r.ok ? r.json() : null)
@@ -48,10 +130,12 @@
         SHIPPING_CLIENT = cfg;
         // Recompute to reflect real shipping
         try { computeTotals(); } catch (_) { }
+        updatePricePreview();
       }
     })
     .catch(() => { /* non-fatal: UI keeps $0 shipping preview */ });
 
+  loadPrices().then(() => updatePricePreview());
 
   function computeTotals() {
     const qty = Math.max(0, Number(el.qty?.value || 0));
@@ -124,6 +208,18 @@
     const t = computeTotals();
     alert(`Review\nSubtotal: ${fmt(t.subtotal)}\nTax: ${fmt(t.tax)}\nTotal: ${fmt(t.grandTotal)}`);
   });
+
+  // Live price preview wiring
+  const sizeIds = ['qtSzXS','qtSzSM','qtSzMD','qtSzLG','qtSzXL','qtSz2X','qtSz3X'];
+  sizeIds.forEach(id => {
+    const input = document.getElementById(id);
+    if (input) input.addEventListener('input', updatePricePreview);
+  });
+  const blankSelect = document.getElementById('blankSelect');
+  if (blankSelect) blankSelect.addEventListener('change', updatePricePreview);
+  document.addEventListener('qt:side-changed', updatePricePreview);
+  document.addEventListener('qt:pricing-updated', updatePricePreview);
+  updatePricePreview();
 })();
 
 // ---- Two-sided: minimal side state + toggle wiring ----

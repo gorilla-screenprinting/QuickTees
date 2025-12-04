@@ -341,6 +341,8 @@
       sizeReadout.classList.remove('error');
       if (placeBtn) placeBtn.disabled = false;
     }
+
+    document.dispatchEvent(new CustomEvent('qt:pricing-updated'));
   }
 
   // ===== Rendering =====
