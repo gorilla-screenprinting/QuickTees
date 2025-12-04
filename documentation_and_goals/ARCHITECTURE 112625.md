@@ -120,3 +120,5 @@ curl -i -X POST "https://<site>/.netlify/functions/upload-to-drive" -F "file=@/t
 - `create-order.js` and any “pending”/quote flow are retired; paid-only path is live.
 - `documentation_and_goals/ARCHITECTURE 070925.md` is older; use this doc as canonical. Keep the old file only if you need its historical ops snippets.
 - `documentation_and_goals/cart v1 checklist.txt` appears legacy; safe to ignore unless reviving that flow.
+
+- Make upload-to-drive more robust: add client retry/backoff, clearer server messages/logging, and handle timeouts/large files gracefully.

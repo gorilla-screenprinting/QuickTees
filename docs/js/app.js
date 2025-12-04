@@ -840,7 +840,10 @@
         form.append('order_note', meta.order_note);
 
         const res = await fetch('/.netlify/functions/upload-to-drive', { method: 'POST', body: form });
-        if (!res.ok) throw new Error(`Upload failed HTTP ${res.status}`);
+        if (!res.ok) {
+          const txt = await res.text().catch(() => '');
+          throw new Error(`Upload failed HTTP ${res.status}${txt ? ` — ${txt}` : ''}`);
+        }
         const result = await res.json();
 
         const fileId = result.id || result.fileId;
