@@ -83,6 +83,9 @@
 
   function deriveSidePriceCents(sideKey) {
     if (!PRICES || !PRICES.dtf) return 0;
+    const sides = window.orderState?.sides || {};
+    const slot = sides[sideKey] || {};
+    if (!slot.fileId) return 0;
     const tier = deriveTierForSide(sideKey);
     if (!tier) return 0;
     const key = `dtf-${tier}-${sideKey}`;
