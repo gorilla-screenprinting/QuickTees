@@ -56,7 +56,8 @@
       bgEnabled: BG.enabled || false,
       bgMode: BG.mode || 'edge',
       crop: crop ? { ...crop } : null,
-      cropMode: cropMode
+      cropMode: cropMode,
+      designLabel: slot.designLabel || ''
     });
   }
 
@@ -84,6 +85,9 @@
     updateBgButton();
     updateBgScopeButton();
     updateCropButtons();
+    const label = saved?.designLabel || '';
+    const hasFile = !!saved?.fileId;
+    setArtName(label ? `${label}${hasFile ? ' ✓' : ''}` : '(No file selected)');
     if (BG.enabled && state.artImg && !processedArt) rebuildProcessedArt();
     else scheduleDraw();
   }
@@ -809,7 +813,11 @@
       }
 
       // local preview
-      setArtName(f.name);
+      const side = window.orderState.activeSide || 'front';
+      const slot = ensureSide(side);
+      const safeLabel = (f.name || '').replace(/\.[^.]+$/, '');
+      slot.designLabel = safeLabel;
+      setArtName(safeLabel || f.name || '(No file selected)');
       state.artImg = await loadImageFromFile(f);
       placeArtTopMaxWidth();
       crop = fullCropRect();
@@ -847,19 +855,16 @@
         const result = await res.json();
 
         const fileId = result.id || result.fileId;
-        const side = window.orderState.activeSide || 'front';
-        const slot = ensureSide(side);
-        const label = (f.name || '').replace(/\.[^.]+$/, '');
         window.orderState.fileId = fileId; // legacy global
         slot.fileId = fileId;
-        slot.designLabel = label;
+        slot.designLabel = safeLabel;
         slot.readoutIn = window.orderState.readoutIn || slot.readoutIn;
         slot.tierIn = window.orderState.currentTier?.tierIn ?? slot.tierIn ?? null;
         slot.currentTier = window.orderState.currentTier || slot.currentTier || null;
         window.orderState.orderNote = meta.order_note || '';
         window.orderState.pendingEmail = document.querySelector('#qtEmail')?.value || '';
 
-        setArtName(`${f.name} ✓ uploaded`);
+        setArtName(`${safeLabel} ✓ uploaded`);
       } catch (err) {
         console.error(err);
         setArtName(`Upload failed: ${err.message}`);

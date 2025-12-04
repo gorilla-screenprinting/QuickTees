@@ -21,12 +21,10 @@
 </head>
 
 <body>
-
   <!-- Order Panel -->
   <aside class="qt-order-panel" id="qtOrderPanel" role="dialog" aria-hidden="true">
     <div class="qt-op-header">
       Your order
-      <button id="qtPanelClose" class="qt-op-close" aria-label="Close">✕</button>
     </div>
 
     <div class="qt-op-body">
@@ -47,28 +45,25 @@
       </div>
 
       <!-- Sizes -->
-      <div class="qt-op-field">
-        <label>Sizes</label>
-        <div class="qt-sizes">
-          <label>XS <input id="qtSzXS" type="text" inputmode="numeric" pattern="\d*" maxlength="2" value="0"></label>
-          <label>SM <input id="qtSzSM" type="text" inputmode="numeric" pattern="\d*" maxlength="2" value="0"></label>
-          <label>MD <input id="qtSzMD" type="text" inputmode="numeric" pattern="\d*" maxlength="2" value="0"></label>
-          <label>LG <input id="qtSzLG" type="text" inputmode="numeric" pattern="\d*" maxlength="2" value="0"></label>
-          <label>XL <input id="qtSzXL" type="text" inputmode="numeric" pattern="\d*" maxlength="2" value="0"></label>
-          <label>2X <input id="qtSz2X" type="text" inputmode="numeric" pattern="\d*" maxlength="2" value="0"></label>
-          <label>3X <input id="qtSz3X" type="text" inputmode="numeric" pattern="\d*" maxlength="2" value="0"></label>
+        <div class="qt-op-field">
+          <label>Quantites Per Size</label>
+          <div class="qt-sizes">
+            <label class="qt-size-col"><span>XS</span><input id="qtSzXS" type="text" inputmode="numeric" pattern="\d*" maxlength="2" value="0"></label>
+            <label class="qt-size-col"><span>SM</span><input id="qtSzSM" type="text" inputmode="numeric" pattern="\d*" maxlength="2" value="0"></label>
+            <label class="qt-size-col"><span>MD</span><input id="qtSzMD" type="text" inputmode="numeric" pattern="\d*" maxlength="2" value="0"></label>
+            <label class="qt-size-col"><span>LG</span><input id="qtSzLG" type="text" inputmode="numeric" pattern="\d*" maxlength="2" value="0"></label>
+            <label class="qt-size-col"><span>XL</span><input id="qtSzXL" type="text" inputmode="numeric" pattern="\d*" maxlength="2" value="0"></label>
+            <label class="qt-size-col"><span>2X</span><input id="qtSz2X" type="text" inputmode="numeric" pattern="\d*" maxlength="2" value="0"></label>
+            <label class="qt-size-col"><span>3X</span><input id="qtSz3X" type="text" inputmode="numeric" pattern="\d*" maxlength="2" value="0"></label>
+          </div>
         </div>
-      </div>
 
-      <div class="qt-op-hint" style="font-size:.9em;opacity:.8;margin-top:.25rem;">
-        Enter counts; leave 0 if none. (36+ triggers screenprint quote.)
+      
+      <!-- Notes -->
+      <div class="qt-op-field">
+        <label for="qtNotes">Notes (optional)</label>
+        <textarea id="qtNotes" rows="3" placeholder='e.g., "Front chest 10&quot; wide"'></textarea>
       </div>
-    </div>
-
-    <!-- Notes -->
-    <div class="qt-op-field">
-      <label for="qtNotes">Notes (optional)</label>
-      <textarea id="qtNotes" rows="3" placeholder='e.g., "Front chest 10&quot; wide"'></textarea>
     </div>
 
     <!-- Summary -->
@@ -153,7 +148,7 @@
             <ul class="tips">
               <li>Drag to move</li>
               <li>Shift + drag to scale (desktop)</li>
-              <li>Pinch to resize  (mobile)</li>
+              <li>Pinch to resize (mobile)</li>
               <li>“Center” to recenter your art</li>
               <li>“Max it Out” to fit inside print area</li>
             </ul>

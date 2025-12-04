@@ -110,6 +110,13 @@ h1 {
 
 .bagel-select { margin-top: 6px; }
 
+#qtNotes{
+  width: 100%;
+  max-width: none;
+  display: block;
+  margin: 0;
+}
+
 .mt-2 {
   margin-top: 8px;
 }
@@ -152,7 +159,6 @@ h1 {
   min-height: 0; /* allow children to shrink within the viewport */
 }
 
-
 .app {
   display: grid;
   grid-template-columns: clamp(320px, 36vw, 440px) 1fr;
@@ -165,7 +171,6 @@ h1 {
   padding: 0;
   overflow: hidden;
 }
-
 
 .stage {
   position: relative;
@@ -681,9 +686,28 @@ select option {
 
 .error { color: #c62828; }
 
-.qt-sizes{display:flex;flex-wrap:nowrap;gap:.75rem;white-space:nowrap;overflow-x:auto}
-.qt-sizes label{display:inline-flex;align-items:center;gap:.35rem}
-.qt-sizes input[type=number]{width:3.5ch;text-align:right;padding:.25rem .35rem;font-variant-numeric:tabular-nums}
+.qt-sizes{
+  display:grid;
+  grid-template-columns: repeat(auto-fit, minmax(44px, 1fr));
+  gap: 2px;
+  white-space: normal;
+}
+.qt-sizes label,
+.qt-size-col{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:2px;
+}
+.qt-sizes input[type=number],
+.qt-sizes input[type=text]{
+  width:3.6ch;
+  min-width:3.6ch;
+  flex:0 0 auto;
+  text-align:right;
+  padding:.25rem .35rem;
+  font-variant-numeric:tabular-nums;
+}
 
 
 /* Front/Back toggle */
