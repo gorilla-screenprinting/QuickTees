@@ -180,10 +180,12 @@ exports.handler = async (event) => {
       const t = Number(meta.tierIn);
       const decoration_sku = [4, 8, 12, 16].includes(t) ? `dtf-${t}-${placement}` : '';
 
+      const fileId = meta.fileId || meta.f || meta.b || '';
+
       childRows.push([
         orderId,                         // orderId (FK)
         meta.designLabel || 'Design',    // designLabel
-        meta.fileId || '',               // fileId
+        fileId,                          // fileId
         meta.garmentSKU || '',           // garmentSKU
         placement,                       // placement
         sizesJson,                       // sizesJson

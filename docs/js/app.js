@@ -232,8 +232,9 @@
   async function captureMockupPng(side) {
     const prev = window.orderState.activeSide || 'front';
     if (side !== prev) setActiveSide(side);
-    // wait 2 rAFs so draw settles
+    // wait 2 rAFs so draw settles, plus a tiny timeout for good measure
     await new Promise((res) => requestAnimationFrame(() => requestAnimationFrame(res)));
+    await new Promise((res) => setTimeout(res, 50));
     const dataUrl = canvas.toDataURL('image/png');
     const blob = await (await fetch(dataUrl)).blob();
     if (side !== prev) setActiveSide(prev);
