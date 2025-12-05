@@ -248,7 +248,8 @@ exports.handler = async (event) => {
         orderNote: body.orderNote || '',
         customerName: body.customerName || '',
       customerPhone: body.customerPhone || '',
-      items: compactItemsForMetadata(items)
+      items: compactItemsForMetadata(items),
+      mockups: body.mockups ? JSON.stringify(body.mockups) : ''
       },
 
       allow_promotion_codes: true

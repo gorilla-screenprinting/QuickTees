@@ -101,6 +101,15 @@
   const CLAMP_EPS_PX = 0.5;
   const CROP_MIN = 20;
   const HANDLE_HIT = 18;
+  const ALLOWED_MIME = new Set([
+    'image/png',
+    'image/jpeg',
+    'image/jpg',
+    'image/webp',
+    'image/gif',
+    'image/svg+xml'
+  ]);
+  const ALLOWED_EXT = new Set(['png', 'jpg', 'jpeg', 'webp', 'gif', 'svg']);
 
   const DESIRED_W = Math.round(MAX_IN.w * PPI_HINT);
   const DESIRED_H = Math.round(MAX_IN.h * PPI_HINT);
@@ -188,6 +197,71 @@
   const area = () => (BOX_PX || PRINT);
 
   const srcImage = () => (processedArt || state.artImg);
+
+  // Generic uploader using signed URL (shared for art + mockups)
+  async function uploadToGcs(fileLike, suggestedName) {
+    const name = suggestedName || fileLike.name || `upload-${Date.now()}.bin`;
+    const urlRes = await fetch('/.netlify/functions/create-upload-url', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fileName: name })
+    });
+    if (!urlRes.ok) {
+      const txt = await urlRes.text().catch(() => '');
+      throw new Error(`Could not get upload URL (${urlRes.status}${txt ? ` — ${txt}` : ''})`);
+    }
+    const { url, publicUrl, objectName, bucket } = await urlRes.json();
+    if (!url || !objectName) throw new Error('Upload URL missing');
+
+    const putRes = await fetch(url, {
+      method: 'PUT',
+      headers: { 'Content-Type': fileLike.type || 'application/octet-stream' },
+      body: fileLike
+    });
+    if (!putRes.ok) {
+      const txt = await putRes.text().catch(() => '');
+      throw new Error(`Upload failed HTTP ${putRes.status}${txt ? ` — ${txt}` : ''}`);
+    }
+
+    return {
+      fileId: `gs://${bucket || ''}/${objectName}`,
+      publicUrl: publicUrl || ''
+    };
+  }
+
+  async function captureMockupPng(side) {
+    const prev = window.orderState.activeSide || 'front';
+    if (side !== prev) setActiveSide(side);
+    // wait 2 rAFs so draw settles
+    await new Promise((res) => requestAnimationFrame(() => requestAnimationFrame(res)));
+    const dataUrl = canvas.toDataURL('image/png');
+    const blob = await (await fetch(dataUrl)).blob();
+    if (side !== prev) setActiveSide(prev);
+    return blob;
+  }
+
+  async function generateAndUploadMockups(orderLabel = '') {
+    const suffix = orderLabel ? orderLabel.replace(/\s+/g, '_') : Date.now();
+    const [frontBlob, backBlob] = await Promise.all([
+      captureMockupPng('front'),
+      captureMockupPng('back')
+    ]);
+
+    const frontName = `mockup-front-${suffix}.png`;
+    const backName = `mockup-back-${suffix}.png`;
+
+    const [frontRes, backRes] = await Promise.all([
+      uploadToGcs(frontBlob, frontName),
+      uploadToGcs(backBlob, backName)
+    ]);
+
+    const mockups = {
+      front: frontRes.fileId,
+      back: backRes.fileId
+    };
+    window.orderState.mockups = mockups;
+    return mockups;
+  }
 
   function fullCropRect() {
     const src = state.artImg;
@@ -814,6 +888,16 @@
         return;
       }
 
+      // Basic type guard
+      const ext = (f.name.split('.').pop() || '').toLowerCase();
+      const mimeOk = ALLOWED_MIME.has(f.type);
+      const extOk = ALLOWED_EXT.has(ext);
+      if (!mimeOk && !extOk) {
+        setArtName('Unsupported file type. Use PNG, JPG, WEBP, GIF, or SVG.');
+        artInput.value = '';
+        return;
+      }
+
       // local preview
       const side = window.orderState.activeSide || 'front';
       const slot = ensureSide(side);
@@ -839,32 +923,9 @@
         if (artBtn) artBtn.disabled = true;
         setArtName(`Uploading: ${f.name}…`);
 
-        // 1) Request a signed URL
-        const urlRes = await fetch('/.netlify/functions/create-upload-url', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ fileName: f.name })
-        });
-        if (!urlRes.ok) {
-          const txt = await urlRes.text().catch(() => '');
-          throw new Error(`Could not get upload URL (${urlRes.status}${txt ? ` — ${txt}` : ''})`);
-        }
-        const { url, publicUrl, objectName, bucket } = await urlRes.json();
-        if (!url || !objectName) throw new Error('Upload URL missing');
-
-        // 2) PUT the file directly to storage
-        const putRes = await fetch(url, {
-          method: 'PUT',
-          headers: { 'Content-Type': f.type || 'application/octet-stream' },
-          body: f
-        });
-        if (!putRes.ok) {
-          const txt = await putRes.text().catch(() => '');
-          throw new Error(`Upload failed HTTP ${putRes.status}${txt ? ` — ${txt}` : ''}`);
-        }
-
-        // Treat GCS object path as the fileId; keep label + tier info
-        const fileId = `gs://${bucket || ''}/${objectName}`;
+        const uploadRes = await uploadToGcs(f, f.name);
+        const fileId = uploadRes.fileId;
+        const publicUrl = uploadRes.publicUrl || '';
         window.orderState.fileId = fileId; // legacy global
         slot.fileId = fileId;
         slot.designLabel = safeLabel;
@@ -873,7 +934,7 @@
         slot.currentTier = window.orderState.currentTier || slot.currentTier || null;
         window.orderState.orderNote = document.querySelector('#qtNotes')?.value || '';
         window.orderState.pendingEmail = document.querySelector('#qtEmail')?.value || '';
-        slot.publicUrl = publicUrl || '';
+        slot.publicUrl = publicUrl;
 
         setArtName(`${safeLabel} ✓ uploaded`);
       } catch (err) {
@@ -1085,6 +1146,9 @@
   setActiveSide(window.orderState.activeSide); // sync button styles first
   setCanvasSize();
   loadShirtManifest();
+
+  // expose helpers for checkout flow
+  window.generateAndUploadMockups = generateAndUploadMockups;
 
   window.addEventListener('resize', setCanvasSize);
   window.addEventListener('orientationchange', setCanvasSize);

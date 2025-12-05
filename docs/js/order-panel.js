@@ -376,6 +376,22 @@
       if (totalQty <= 0) { alert('Enter at least one shirt across sizes.'); return; }
       if (totalQty >= 36) { alert('Orders of 36+ are screenprint-only. Contact us for a quote.'); return; }
 
+      // Generate & upload mockups to GCS (for both sides)
+      let mockups = {};
+      try {
+        if (typeof window.generateAndUploadMockups === 'function') {
+          placeBtn.textContent = 'Uploading mockups…';
+          placeBtn.disabled = true;
+          mockups = await window.generateAndUploadMockups(`order-${Date.now()}`);
+        }
+      } catch (err) {
+        console.error('Mockup upload failed', err);
+        alert('Could not upload mockups. Please try again.');
+        placeBtn.textContent = 'Checkout';
+        placeBtn.disabled = false;
+        return;
+      }
+
       // Request body (single garment with per-side decorations)
       const body = {
         email,
@@ -384,7 +400,8 @@
         productId: garmentSKU,   // server maps this to garment SKU
         sizeRun,                 // e.g., { XS:2, LG:5, '2X':1 }
         orderNote: note,
-        sides: sidesPayload
+        sides: sidesPayload,
+        mockups
       };
 
       const res = await fetch('/.netlify/functions/create-checkout', {
@@ -408,6 +425,9 @@
     } catch (err) {
       console.error('Place error', err);
       alert('Could not start checkout.');
+    } finally {
+      placeBtn.textContent = 'Checkout';
+      placeBtn.disabled = false;
     }
   });
 })();

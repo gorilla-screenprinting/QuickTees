@@ -53,11 +53,17 @@ exports.handler = async (event) => {
 
     // ---------- Parse metadata items we sent from create-checkout ----------
     let metaItems = [];
+    let mockups = {};
     try {
       const itemsJson = session.metadata?.items || '[]';
       const parsed = JSON.parse(itemsJson);
       metaItems = Array.isArray(parsed) ? parsed : [];
     } catch { metaItems = []; }
+    try {
+      const mJson = session.metadata?.mockups || '{}';
+      const parsedM = JSON.parse(mJson);
+      if (parsedM && typeof parsedM === 'object') mockups = parsedM;
+    } catch { mockups = {}; }
 
     // Stripe line items (expected order: [G1, D1, G2, D2, ...])
     const li = fullSession.line_items?.data || [];
@@ -100,8 +106,8 @@ exports.handler = async (event) => {
     });
     const sheets = google.sheets({ version: 'v4', auth });
 
-    // Orders sheet: A:N
-    const ordersRange = 'Orders!A:N';
+    // Orders sheet: A:O (extra column for mockups if present)
+    const ordersRange = 'Orders!A:O';
     const existingOrders = await sheets.spreadsheets.values.get({
       spreadsheetId,
       range: ordersRange,
@@ -131,6 +137,10 @@ exports.handler = async (event) => {
         checkoutUrl,     // M: checkoutUrl
         currency         // N: currency
       ];
+
+      if (mockups && (mockups.front || mockups.back)) {
+        ordersRow.push(JSON.stringify(mockups)); // O: mockups (optional)
+      }
 
       await sheets.spreadsheets.values.append({
         spreadsheetId,
