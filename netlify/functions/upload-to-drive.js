@@ -38,6 +38,7 @@ exports.handler = async (event) => {
     let fileBuffer = Buffer.alloc(0);
     let fileName = "upload.bin";
     let mimeType = "application/octet-stream";
+    let fileSizeBytes = 0;
 
     await new Promise((resolve, reject) => {
       busboy.on("file", (fieldname, file, info) => {
@@ -48,6 +49,7 @@ exports.handler = async (event) => {
 
         file.on("data", (chunk) => {
           fileBuffer = Buffer.concat([fileBuffer, chunk]);
+          fileSizeBytes += chunk.length;
         });
         file.on("end", () => {
           // noop — finished reading file stream
@@ -68,6 +70,29 @@ exports.handler = async (event) => {
 
       busboy.end(body);
     });
+
+    // Basic guards before hitting Drive
+    if (!fileSizeBytes) {
+      return {
+        statusCode: 400,
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ error: "No file data received" }),
+      };
+    }
+
+    // Netlify Functions hard-limit around 10MB; bail early with a clear message.
+    const MAX_BYTES = 9 * 1024 * 1024; // ~9MB
+    if (fileSizeBytes > MAX_BYTES) {
+      return {
+        statusCode: 413,
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          error: `File too large (${(fileSizeBytes / (1024 * 1024)).toFixed(2)} MB). Max 9 MB.`,
+        }),
+      };
+    }
+
+    console.info("Upload request", { fileName, mimeType, bytes: fileSizeBytes });
 
     // ---------- Build Drive create request ----------
     const parents = [];
@@ -90,7 +115,25 @@ exports.handler = async (event) => {
       supportsAllDrives: true,
     };
 
-    const createRes = await drive.files.create(createReq);
+    let createRes;
+    try {
+      createRes = await drive.files.create(createReq);
+    } catch (driveErr) {
+      console.error("Drive create failed", {
+        message: driveErr.message,
+        errors: driveErr.errors,
+        code: driveErr.code,
+      });
+      return {
+        statusCode: 500,
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          error: driveErr.message || "Drive upload failed",
+          code: driveErr.code,
+          errors: driveErr.errors,
+        }),
+      };
+    }
 
     // If we set a parent in a Shared Drive, ensure it's actually used and visible
     // (not strictly required; added for robustness)
