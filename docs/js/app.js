@@ -242,10 +242,9 @@
 
   async function generateAndUploadMockups(orderLabel = '') {
     const suffix = orderLabel ? orderLabel.replace(/\s+/g, '_') : Date.now();
-    const [frontBlob, backBlob] = await Promise.all([
-      captureMockupPng('front'),
-      captureMockupPng('back')
-    ]);
+    // Capture sequentially so side swaps don't race each other
+    const frontBlob = await captureMockupPng('front');
+    const backBlob = await captureMockupPng('back');
 
     const frontName = `mockup-front-${suffix}.png`;
     const backName = `mockup-back-${suffix}.png`;
