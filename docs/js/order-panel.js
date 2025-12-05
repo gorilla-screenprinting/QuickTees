@@ -100,29 +100,52 @@
     return p ? (p.unit_amount | 0) : 0;
   }
 
-  function updatePricePreview() {
+  // Unified pricing breakdown used for both the live preview and the Review modal.
+  function computePriceBreakdown() {
     const qty = sumSizeInputs();
-    if (!el.sub || !el.ship || !el.total) return;
-
-    if (!qty || !PRICES) {
-      el.sub.textContent = '$0.00';
-      el.ship.textContent = '$0.00';
-      el.total.textContent = '$0.00';
-      return;
-    }
-
+    const sku = window.orderState?.blankSku || '';
     const garmentCents = deriveGarmentPriceCents();
+    const tierFront = deriveTierForSide('front');
+    const tierBack = deriveTierForSide('back');
     const dtfFrontCents = deriveSidePriceCents('front');
     const dtfBackCents = deriveSidePriceCents('back');
-
     const perUnitCents = garmentCents + dtfFrontCents + dtfBackCents;
     const subtotalCents = perUnitCents * qty;
     const shippingCents = pickShipCentsByCount(qty);
     const totalCents = subtotalCents + shippingCents;
+    const breakdown = {
+      qty,
+      sku,
+      tierFront,
+      tierBack,
+      garmentCents,
+      dtfFrontCents,
+      dtfBackCents,
+      perUnitCents,
+      subtotalCents,
+      shippingCents,
+      totalCents
+    };
+    // Expose for quick console debugging: window.__qtPriceDebug
+    window.__qtPriceDebug = breakdown;
+    return breakdown;
+  }
 
-    el.sub.textContent = fmt(subtotalCents / 100);
-    el.ship.textContent = fmt(shippingCents / 100);
-    el.total.textContent = fmt(totalCents / 100);
+  function updatePricePreview() {
+    if (!el.sub || !el.ship || !el.total) return;
+    const qty = sumSizeInputs();
+    if (!qty || !PRICES) {
+      el.sub.textContent = '$0.00';
+      el.ship.textContent = '$0.00';
+      el.total.textContent = '$0.00';
+      window.__qtPriceDebug = { qty, reason: 'missing qty/prices' };
+      return;
+    }
+
+    const b = computePriceBreakdown();
+    el.sub.textContent = fmt(b.subtotalCents / 100);
+    el.ship.textContent = fmt(b.shippingCents / 100);
+    el.total.textContent = fmt(b.totalCents / 100);
   }
 
   // Load shipping table from server (same file used by the backend)
@@ -141,6 +164,26 @@
   loadPrices().then(() => updatePricePreview());
 
   function computeTotals() {
+    // Use live pricing if we have it; else fall back to the old qty/unit fields (rare).
+    if (PRICES) {
+      const b = computePriceBreakdown();
+      const subtotal = +(b.subtotalCents / 100).toFixed(2);
+      const shipping = +(b.shippingCents / 100).toFixed(2);
+      const grandTotal = +(b.totalCents / 100).toFixed(2);
+      if (el.sub) el.sub.textContent = fmt(subtotal);
+      if (el.tax) el.tax.textContent = 'Calculated at checkout';
+      if (el.ship) el.ship.textContent = fmt(shipping);
+      if (el.total) el.total.textContent = fmt(grandTotal);
+      return {
+        subtotal,
+        tax: null,
+        shipping,
+        grandTotal,
+        qty: b.qty,
+        unit: +(b.perUnitCents / 100).toFixed(2),
+      };
+    }
+
     const qty = Math.max(0, Number(el.qty?.value || 0));
     const unit = Math.max(0, Number(el.unit?.value || 0));
     const subtotal = +(qty * unit).toFixed(2);
