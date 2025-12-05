@@ -106,8 +106,8 @@ exports.handler = async (event) => {
     });
     const sheets = google.sheets({ version: 'v4', auth });
 
-    // Orders sheet: A:O (extra column for mockups if present)
-    const ordersRange = 'Orders!A:O';
+    // Orders sheet: A:X (includes mockups, folderLink placeholder, shipping addr, orderNote)
+    const ordersRange = 'Orders!A:X';
     const existingOrders = await sheets.spreadsheets.values.get({
       spreadsheetId,
       range: ordersRange,
@@ -121,6 +121,18 @@ exports.handler = async (event) => {
     });
 
     if (!already) {
+      const shippingDetails = session.shipping_details || {};
+      const shipAddr = shippingDetails.address || {};
+      const shipName = shippingDetails.name || '';
+      const shipLine1 = shipAddr.line1 || '';
+      const shipLine2 = shipAddr.line2 || '';
+      const shipCity = shipAddr.city || '';
+      const shipState = shipAddr.state || '';
+      const shipPostal = shipAddr.postal_code || '';
+      const shipCountry = shipAddr.country || '';
+      const orderNote = session.metadata?.orderNote || '';
+      const mockupsStr = mockups && (mockups.front || mockups.back) ? JSON.stringify(mockups) : '';
+
       const ordersRow = [
         orderId,         // A: orderId
         createdAt,       // B: createdAt
@@ -135,12 +147,18 @@ exports.handler = async (event) => {
         source,          // K: source
         paymentIntentId, // L: paymentIntentId
         checkoutUrl,     // M: checkoutUrl
-        currency         // N: currency
+        currency,        // N: currency
+        mockupsStr,      // O: mockups JSON (front/back gs://)
+        '',              // P: folderLink (filled by Apps Script)
+        shipName,        // Q: shipping name
+        shipLine1,       // R: shipping line1
+        shipLine2,       // S: shipping line2
+        shipCity,        // T: shipping city
+        shipState,       // U: shipping state
+        shipPostal,      // V: shipping postal
+        shipCountry,     // W: shipping country
+        orderNote        // X: order note
       ];
-
-      if (mockups && (mockups.front || mockups.back)) {
-        ordersRow.push(JSON.stringify(mockups)); // O: mockups (optional)
-      }
 
       await sheets.spreadsheets.values.append({
         spreadsheetId,
