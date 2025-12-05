@@ -834,37 +834,46 @@
       else scheduleDraw();
       snapshotSide(window.orderState.activeSide || 'front');
 
-      // upload to Drive
+      // Upload directly to cloud storage via signed URL (bypasses Netlify size/time limits)
       try {
         if (artBtn) artBtn.disabled = true;
         setArtName(`Uploading: ${f.name}…`);
 
-        const meta = {
-          customer_email: document.querySelector('#qtEmail')?.value || '',
-          order_note: document.querySelector('#qtNotes')?.value || ''
-        };
-
-        const form = new FormData();
-        form.append('file', f, f.name);
-        form.append('customer_email', meta.customer_email);
-        form.append('order_note', meta.order_note);
-
-        const res = await fetch('/.netlify/functions/upload-to-drive', { method: 'POST', body: form });
-        if (!res.ok) {
-          const txt = await res.text().catch(() => '');
-          throw new Error(`Upload failed HTTP ${res.status}${txt ? ` — ${txt}` : ''}`);
+        // 1) Request a signed URL
+        const urlRes = await fetch('/.netlify/functions/create-upload-url', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ fileName: f.name })
+        });
+        if (!urlRes.ok) {
+          const txt = await urlRes.text().catch(() => '');
+          throw new Error(`Could not get upload URL (${urlRes.status}${txt ? ` — ${txt}` : ''})`);
         }
-        const result = await res.json();
+        const { url, publicUrl, objectName, bucket } = await urlRes.json();
+        if (!url || !objectName) throw new Error('Upload URL missing');
 
-        const fileId = result.id || result.fileId;
+        // 2) PUT the file directly to storage
+        const putRes = await fetch(url, {
+          method: 'PUT',
+          headers: { 'Content-Type': f.type || 'application/octet-stream' },
+          body: f
+        });
+        if (!putRes.ok) {
+          const txt = await putRes.text().catch(() => '');
+          throw new Error(`Upload failed HTTP ${putRes.status}${txt ? ` — ${txt}` : ''}`);
+        }
+
+        // Treat GCS object path as the fileId; keep label + tier info
+        const fileId = `gs://${bucket || ''}/${objectName}`;
         window.orderState.fileId = fileId; // legacy global
         slot.fileId = fileId;
         slot.designLabel = safeLabel;
         slot.readoutIn = window.orderState.readoutIn || slot.readoutIn;
         slot.tierIn = window.orderState.currentTier?.tierIn ?? slot.tierIn ?? null;
         slot.currentTier = window.orderState.currentTier || slot.currentTier || null;
-        window.orderState.orderNote = meta.order_note || '';
+        window.orderState.orderNote = document.querySelector('#qtNotes')?.value || '';
         window.orderState.pendingEmail = document.querySelector('#qtEmail')?.value || '';
+        slot.publicUrl = publicUrl || '';
 
         setArtName(`${safeLabel} ✓ uploaded`);
       } catch (err) {

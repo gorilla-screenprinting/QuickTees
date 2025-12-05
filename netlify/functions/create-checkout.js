@@ -165,6 +165,10 @@ function compactItemsForMetadata(items = []) {
 
 async function getDriveFileName(fileId) {
   if (!fileId) return '';
+  // Skip Drive lookup for GCS-based uploads
+  if (fileId.startsWith('gs://') || fileId.startsWith('gcs://') || fileId.startsWith('https://storage.googleapis.com')) {
+    return fileId.split('/').pop();
+  }
   try {
     const auth = new google.auth.GoogleAuth({
       credentials: JSON.parse(process.env.GDRIVE_SERVICE_KEY),
