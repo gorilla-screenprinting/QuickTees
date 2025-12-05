@@ -35,9 +35,9 @@ exports.handler = async (event) => {
       return Number.isFinite(x) ? x : 0;
     };
 
-    // Full session for lines + payment intent + shipping
+    // Full session for lines + payment intent
     const fullSession = await stripe.checkout.sessions.retrieve(session.id, {
-      expand: ['line_items.data.price.product', 'payment_intent', 'shipping_details'],
+      expand: ['line_items.data.price.product', 'payment_intent'],
     });
 
     const spreadsheetId = process.env.ORDERS_SPREADSHEET_ID;
@@ -121,7 +121,7 @@ exports.handler = async (event) => {
     });
 
     if (!already) {
-      const shippingDetails = fullSession.shipping_details || session.shipping_details || {};
+      const shippingDetails = session.shipping_details || fullSession.shipping_details || {};
       const shipAddr = shippingDetails.address || {};
       const shipName = shippingDetails.name || '';
       const shipLine1 = shipAddr.line1 || '';
