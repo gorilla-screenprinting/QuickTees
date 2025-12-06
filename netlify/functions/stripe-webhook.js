@@ -67,6 +67,7 @@ exports.handler = async (event) => {
     } catch { mockups = {}; }
 
     const li = fullSession.line_items?.data || [];
+    const combinedLineSummaries = []; // for email summary
 
     // Reverse lookups for unit prices by priceId
     const GARMENT_BY_PRICE = Object.fromEntries(Object.entries(GARMENT_PRICE_IDS).map(([sku, pid]) => [pid, sku]));
@@ -203,6 +204,18 @@ exports.handler = async (event) => {
       const qty = Object.values(sizes).reduce((a, b) => a + (Number(b) || 0), 0);
       const readW = (meta.readoutIn?.w_in ?? '') || '';
       const readH = (meta.readoutIn?.h_in ?? '') || '';
+
+      const garmentLabel = garmentSKU ? garmentSKU : 'Garment';
+      const combinedPlacement = (meta.f && meta.b) ? 'FRONT & BACK' : (meta.f ? 'FRONT' : (meta.b ? 'BACK' : ''));
+
+      // summary row for email: push a single combined line
+      if (combinedPlacement) {
+        const sizesSummary = Object.entries(sizes)
+          .filter(([, v]) => Number(v) > 0)
+          .map(([k, v]) => `${k}: ${v}`)
+          .join(', ');
+        combinedLineSummaries.push(`${garmentLabel}: ${combinedPlacement} (${sizesSummary || '—'})`);
+      }
 
       // front
       if (meta.f) {

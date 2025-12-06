@@ -232,8 +232,11 @@
   async function captureMockupPng(side) {
     const prev = window.orderState.activeSide || 'front';
     if (side !== prev) setActiveSide(side);
-    // Give the side/blank swap a moment to settle, then 2 rAFs
-    await new Promise((res) => setTimeout(res, 120));
+    // Force correct blank and give it time to load, then 2 rAFs
+    if (window.orderState.blankBase) {
+      await setBlankForSide(window.orderState.blankBase, side);
+    }
+    await new Promise((res) => setTimeout(res, 200));
     await new Promise((res) => requestAnimationFrame(() => requestAnimationFrame(res)));
     await new Promise((res) => setTimeout(res, 50));
     const dataUrl = canvas.toDataURL('image/png');
@@ -737,44 +740,51 @@
   async function setBlankFromFile(filename) {
     if (!filename) {
       state.blank = null; PPI_STAGE = null; BOX_PX = null;
-      return scheduleDraw();
+      scheduleDraw();
+      return;
     }
 
     const items = await ensureManifest();
     const meta = items.find(m => m.file === filename) || null;
 
-    const img = new Image();
-    img.onload = () => {
-      state.blank = img;
+    await new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        state.blank = img;
 
-      const bw = img.width, bh = img.height;
-      const sBlank = Math.min(STAGE.w / bw, STAGE.h / bh);
+        const bw = img.width, bh = img.height;
+        const sBlank = Math.min(STAGE.w / bw, STAGE.h / bh);
 
-      if (meta?.ref?.px && meta?.ref?.in) {
-        PPI_STAGE = (meta.ref.px * sBlank) / meta.ref.in;
-      } else {
-        PPI_STAGE = null;
-      }
+        if (meta?.ref?.px && meta?.ref?.in) {
+          PPI_STAGE = (meta.ref.px * sBlank) / meta.ref.in;
+        } else {
+          PPI_STAGE = null;
+        }
 
-      if (PPI_STAGE && meta?.box_in) {
-        const b = meta.box_in;
-        const wOut = bw * sBlank, hOut = bh * sBlank;
-        const xOut = (STAGE.w - wOut) / 2;
-        const yOut = (STAGE.h - hOut) / 2;
-        BOX_PX = {
-          x: xOut + b.x * PPI_STAGE,
-          y: yOut + b.y * PPI_STAGE,
-          w: b.w * PPI_STAGE,
-          h: b.h * PPI_STAGE
-        };
-      } else {
-        BOX_PX = null;
-      }
+        if (PPI_STAGE && meta?.box_in) {
+          const b = meta.box_in;
+          const wOut = bw * sBlank, hOut = bh * sBlank;
+          const xOut = (STAGE.w - wOut) / 2;
+          const yOut = (STAGE.h - hOut) / 2;
+          BOX_PX = {
+            x: xOut + b.x * PPI_STAGE,
+            y: yOut + b.y * PPI_STAGE,
+            w: b.w * PPI_STAGE,
+            h: b.h * PPI_STAGE
+          };
+        } else {
+          BOX_PX = null;
+        }
 
-      scheduleDraw();
-    };
-    img.onerror = () => console.error('Failed to load blank image', filename);
-    img.src = `./assets/shirt_blanks/${filename}`;
+        scheduleDraw();
+        resolve();
+      };
+      img.onerror = () => {
+        console.error('Failed to load blank image', filename);
+        resolve();
+      };
+      img.src = `./assets/shirt_blanks/${filename}`;
+    });
   }
 
   // side-aware setter; fall back to front if back missing
