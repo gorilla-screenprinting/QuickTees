@@ -145,9 +145,11 @@ function compactItemsForMetadata(items = []) {
   try {
     const compact = items.map(it => {
       const sides = it.sides || {};
+      const sr = it.sizeRun || {};
       return {
         g: it.garmentSKU || '',
-        s: Object.keys(it.sizeRun || {}),
+        s: Object.keys(sr),
+        sr,
         f: it.fileId || sides.front?.fileId || '',
         b: sides.back?.fileId || '',
         tf: sides.front?.tierIn ?? it.tierIn ?? null,

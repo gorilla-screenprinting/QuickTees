@@ -65,16 +65,28 @@ exports.handler = async (event) => {
       if (parsedM && typeof parsedM === 'object') mockups = parsedM;
     } catch { mockups = {}; }
 
-    // Stripe line items (expected order: [G1, D1, G2, D2, ...])
     const li = fullSession.line_items?.data || [];
-    const pairs = [];
-    for (let i = 0; i < metaItems.length; i++) {
-      pairs.push({
-        meta: metaItems[i],
-        garment: li[2 * i] || null,
-        deco: li[2 * i + 1] || null,
-      });
-    }
+
+    // Reverse lookups for unit prices by priceId
+    const GARMENT_BY_PRICE = Object.fromEntries(Object.entries(GARMENT_PRICE_IDS).map(([sku, pid]) => [pid, sku]));
+    const DTF_BY_PRICE = Object.fromEntries(Object.entries(DTF_PRICE_IDS).map(([key, pid]) => {
+      const placement = key.endsWith('back') ? 'back' : 'front';
+      const tMatch = key.match(/dtf-(\d+)-(front|back)/);
+      const tierIn = tMatch ? Number(tMatch[1]) : null;
+      return [pid, { placement, tierIn }];
+    }));
+
+    const garmentUnitBySku = {};
+    const dtfUnitByPlacement = {};
+    li.forEach(line => {
+      const pid = line.price?.id;
+      const unit = (line.price?.unit_amount || 0) / 100;
+      if (GARMENT_BY_PRICE[pid]) garmentUnitBySku[GARMENT_BY_PRICE[pid]] = unit;
+      if (DTF_BY_PRICE[pid]) {
+        const pl = DTF_BY_PRICE[pid].placement;
+        dtfUnitByPlacement[pl] = unit;
+      }
+    });
 
     // ---------- Prepare Orders row (your exact headers) ----------
     const createdAt = new Date((session.created || Math.floor(Date.now() / 1000)) * 1000).toISOString();
@@ -106,8 +118,8 @@ exports.handler = async (event) => {
     });
     const sheets = google.sheets({ version: 'v4', auth });
 
-    // Orders sheet: A:X (includes mockups, folderLink placeholder, shipping addr, orderNote)
-    const ordersRange = 'Orders!A:X';
+    // Orders sheet: A:Y (includes mockups, folderLink placeholder, shipping addr, orderNote, size breakdown)
+    const ordersRange = 'Orders!A:Y';
     const existingOrders = await sheets.spreadsheets.values.get({
       spreadsheetId,
       range: ordersRange,
@@ -132,6 +144,11 @@ exports.handler = async (event) => {
       const shipCountry = shipAddr.country || '';
       const orderNote = session.metadata?.orderNote || '';
       const mockupsStr = mockups && (mockups.front || mockups.back) ? JSON.stringify(mockups) : '';
+      const sizeRun = metaItems[0]?.sr || {};
+      const sizeBreakdown = Object.entries(sizeRun)
+        .filter(([, v]) => Number(v) > 0)
+        .map(([k, v]) => `${k}:${v}`)
+        .join(', ');
 
       const ordersRow = [
         orderId,         // A: orderId
@@ -157,7 +174,8 @@ exports.handler = async (event) => {
         shipState,       // U: shipping state
         shipPostal,      // V: shipping postal
         shipCountry,     // W: shipping country
-        orderNote        // X: order note
+        orderNote,       // X: order note
+        sizeBreakdown    // Y: size breakdown string
       ];
 
       await sheets.spreadsheets.values.append({
@@ -171,55 +189,80 @@ exports.handler = async (event) => {
       console.log('Orders row already exists for', orderId);
     }
 
-    // ---------- Prepare OrderLines rows (your exact headers) ----------
-    // OrderLines headers:
+    // ---------- Prepare OrderLines rows (supports front/back separately) ----------
     // orderId | designLabel | fileId | garmentSKU | placement | sizesJson | tier | readoutW_in | readoutH_in
     // garment_unit | garment_qty | garment_subtotal | decoration_sku | decoration_unit | decoration_qty | decoration_subtotal | line_total
     const childRows = [];
 
-    for (const p of pairs) {
-      const meta = p.meta || {};
-      const g = p.garment;
-      const d = p.deco;
-
-      const qty = Number(g?.quantity) || Number(d?.quantity) || 0;
-
-      const garment_unit = g?.price?.unit_amount ? (g.price.unit_amount / 100) : 0;
-      const decoration_unit = d?.price?.unit_amount ? (d.price.unit_amount / 100) : 0;
-
-      const garment_subtotal = garment_unit * qty;
-      const decoration_subtotal = decoration_unit * qty;
-      const line_total = garment_subtotal + decoration_subtotal;
-
-      const sizesJson = JSON.stringify(meta.sizeRun || {});
+    metaItems.forEach(meta => {
+      const garmentSKU = meta.g || '';
+      const garment_unit = Number((garmentUnitBySku[garmentSKU] || 0).toFixed(2));
+      const sizes = meta.sr || {};
+      const sizesJson = JSON.stringify(sizes);
+      const qty = Object.values(sizes).reduce((a, b) => a + (Number(b) || 0), 0);
       const readW = (meta.readoutIn?.w_in ?? '') || '';
       const readH = (meta.readoutIn?.h_in ?? '') || '';
-      const placement = (meta.placement || 'front').toLowerCase() === 'back' ? 'back' : 'front';
-      const t = Number(meta.tierIn);
-      const decoration_sku = [4, 8, 12, 16].includes(t) ? `dtf-${t}-${placement}` : '';
 
-      const fileId = meta.fileId || meta.f || meta.b || '';
+      // front
+      if (meta.f) {
+        const t = Number(meta.tf);
+        const placement = 'front';
+        const decoUnit = Number((dtfUnitByPlacement[placement] || 0).toFixed(2));
+        const garment_subtotal = garment_unit * qty;
+        const decoration_subtotal = decoUnit * qty;
+        const line_total = garment_subtotal + decoration_subtotal;
+        const decoration_sku = [4, 8, 12, 16].includes(t) ? `dtf-${t}-${placement}` : '';
+        childRows.push([
+          orderId,
+          meta.designLabel || 'Design',
+          meta.f,
+          garmentSKU,
+          placement,
+          sizesJson,
+          t || '',
+          readW,
+          readH,
+          garment_unit,
+          qty,
+          Number(garment_subtotal.toFixed(2)),
+          decoration_sku,
+          decoUnit,
+          qty,
+          Number(decoration_subtotal.toFixed(2)),
+          Number(line_total.toFixed(2))
+        ]);
+      }
 
-      childRows.push([
-        orderId,                         // orderId (FK)
-        meta.designLabel || 'Design',    // designLabel
-        fileId,                          // fileId
-        meta.garmentSKU || '',           // garmentSKU
-        placement,                       // placement
-        sizesJson,                       // sizesJson
-        (meta.tierIn ?? ''),             // tier
-        readW,                           // readoutW_in
-        readH,                           // readoutH_in
-        Number(garment_unit.toFixed(2)),     // garment_unit
-        qty,                                 // garment_qty
-        Number(garment_subtotal.toFixed(2)), // garment_subtotal
-        decoration_sku,                      // decoration_sku
-        Number(decoration_unit.toFixed(2)),  // decoration_unit
-        qty,                                 // decoration_qty
-        Number(decoration_subtotal.toFixed(2)), // decoration_subtotal
-        Number(line_total.toFixed(2))        // line_total
-      ]);
-    }
+      // back
+      if (meta.b) {
+        const t = Number(meta.tb);
+        const placement = 'back';
+        const decoUnit = Number((dtfUnitByPlacement[placement] || 0).toFixed(2));
+        const garment_subtotal = garment_unit * qty;
+        const decoration_subtotal = decoUnit * qty;
+        const line_total = garment_subtotal + decoration_subtotal;
+        const decoration_sku = [4, 8, 12, 16].includes(t) ? `dtf-${t}-${placement}` : '';
+        childRows.push([
+          orderId,
+          meta.designLabel || 'Design',
+          meta.b,
+          garmentSKU,
+          placement,
+          sizesJson,
+          t || '',
+          readW,
+          readH,
+          garment_unit,
+          qty,
+          Number(garment_subtotal.toFixed(2)),
+          decoration_sku,
+          decoUnit,
+          qty,
+          Number(decoration_subtotal.toFixed(2)),
+          Number(line_total.toFixed(2))
+        ]);
+      }
+    });
 
     if (childRows.length) {
       await sheets.spreadsheets.values.append({
