@@ -2,6 +2,7 @@
 const { google } = require('googleapis');
 const Stripe = require('stripe');
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+const { GARMENT_PRICE_IDS, DTF_PRICE_IDS } = require('./config/prices.js');
 
 exports.handler = async (event) => {
   if (event.httpMethod !== 'POST') {
